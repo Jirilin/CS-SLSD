@@ -1,0 +1,3 @@
+Creating virtual environment: python -m venv venv
+Activate (mac): source venv/bin/activate
+Packages to install: pip install torch torchvision numpy matplotlib
