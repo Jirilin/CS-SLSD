@@ -1,7 +1,7 @@
 Creating virtual environment: python -m venv venv
 Activate (mac): source venv/bin/activate
 Packages to install: pip install torch torchvision numpy matplotlib
-Right folder: cd dissertation_stream_simulator
+Right folder: cd /Users/jirilin/Dissertation/CS-SLSD
 Run: python baseline_offline.py
 Run: python baseline_naive_online.py
 
