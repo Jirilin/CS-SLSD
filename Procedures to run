@@ -1,3 +1,15 @@
 Creating virtual environment: python -m venv venv
 Activate (mac): source venv/bin/activate
 Packages to install: pip install torch torchvision numpy matplotlib
+Right folder: cd dissertation_stream_simulator
+Run: python baseline_offline.py
+Run: python baseline_naive_online.py
+
+
+
+
+Files:
+1. models.py - Simple CNN to run MNIST
+2. utils.py - Helper function
+3. baseline_offline.py - Never updates after initial running
+4. baseline_naive_online.py - Updates on every batch
