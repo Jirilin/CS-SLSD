@@ -11,18 +11,6 @@ class SimplePseudolabelGenerator:
         self.model.eval()
     
     def generate(self, images):
-        """
-        Generate pseudolabels for a batch of images.
-        
-        Args:
-            images (torch.Tensor): Batch of unlabeled images, shape (B, C, H, W).
-        
-        Returns:
-            confident_images (torch.Tensor): Images that passed the threshold.
-            pseudolabels (torch.Tensor): Corresponding pseudolabels.
-            mask (torch.BoolTensor): Boolean mask of confident samples.
-            probabilities (torch.Tensor): Max probabilities for all images (for analysis).
-        """
         with torch.no_grad():
             images = images.to(self.device)
             logits = self.model(images)
@@ -34,14 +22,10 @@ class SimplePseudolabelGenerator:
         return confident_images, pseudolabels, mask, max_probs
     
     def update_threshold(self, new_threshold):
-        """Allow dynamic threshold adjustment (e.g., curriculum pseudo‑labeling)."""
         self.confidence_threshold = new_threshold
         print(f"Confidence threshold updated to {new_threshold}")
     
     def get_statistics(self, images, true_labels=None):
-        """
-        Compute statistics: number confident, average confidence, accuracy if true_labels provided.
-        """
         _, _, mask, max_probs = self.generate(images)
         num_confident = mask.sum().item()
         avg_conf = max_probs[mask].mean().item() if num_confident > 0 else 0.0
