@@ -137,14 +137,16 @@ def main():
     print("\nModel saved to 'baseline_naive_model.pth'")
 
 # After running, plot accuracy over time
-
-plt.plot(accuracies)
-plt.xlabel('Batch Number')
-plt.ylabel('Test Accuracy (%)')
-plt.title('Catastrophic Forgetting in Naive Online Learning')
-plt.grid(True)
-plt.savefig('forgetting_curve.png')
-plt.show()
+if 'accuracies' in locals():
+    plt.plot(accuracies)
+    plt.xlabel('Batch Number')
+    plt.ylabel('Test Accuracy (%)')
+    plt.title('Catastrophic Forgetting in Naive Online Learning')
+    plt.grid(True)
+    plt.savefig('forgetting_curve.png')
+    plt.show()
+else:
+    print("Error: 'accuracies' list was never created. Check if training completed successfully.")
 
 if __name__ == "__main__":
     main()

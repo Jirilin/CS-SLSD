@@ -73,19 +73,6 @@ def evaluate(model, dataloader, device='cpu'):
     return 100 * correct / total
 
 def generate_pseudolabels(model, images, confidence_threshold=0.9, device='cpu'):
-    """
-    Generate pseudolabels from model's own predictions.
-    
-    Args:
-        model: PyTorch model
-        images: batch of images (unlabeled)
-        confidence_threshold: only use predictions above this probability
-        device: 'cpu' or 'cuda'
-    
-    Returns:
-        pseudolabels: tensor of labels (or None if below threshold)
-        mask: boolean tensor indicating which samples passed threshold
-    """
     model.eval()
     with torch.no_grad():
         images = images.to(device)
