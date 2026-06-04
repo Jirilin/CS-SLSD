@@ -6,19 +6,6 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
 def train_epoch(model, dataloader, optimizer, device='cpu'):
-    """
-    Train model for one epoch on labeled data.
-    
-    Args:
-        model: PyTorch model
-        dataloader: DataLoader with (images, labels)
-        optimizer: PyTorch optimizer
-        device: 'cpu' or 'cuda'
-    
-    Returns:
-        average_loss: float
-        accuracy: float
-    """
     model.train()
     total_loss = 0
     correct = 0
