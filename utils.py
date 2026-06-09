@@ -90,3 +90,13 @@ def get_test_loader(batch_size=128):
     return torch.utils.data.DataLoader(
         test_dataset, batch_size=batch_size, shuffle=False
     )
+
+def train_on_batch(model, images, labels, optimizer, device='cpu'):
+    model.train()
+    images, labels = images.to(device), labels.to(device)
+    optimizer.zero_grad()
+    outputs = model(images)
+    loss = torch.nn.functional.cross_entropy(outputs, labels)
+    loss.backward()
+    optimizer.step()
+    return loss.item()
