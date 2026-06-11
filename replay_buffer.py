@@ -10,21 +10,10 @@ class ReplayBuffer:
         self.buffer = deque(maxlen=capacity)
     
     def add(self, images, labels):
-        """
-        Add a batch of (images, labels) to the buffer.
-        Args:
-            images (torch.Tensor): Shape (B, C, H, W)
-            labels (torch.Tensor): Shape (B,)
-        """
         for i in range(len(images)):
             self.buffer.append((images[i].cpu(), labels[i].cpu()))
     
     def sample(self, batch_size):
-        """
-        Randomly sample a batch from the buffer.
-        Returns:
-            images (torch.Tensor), labels (torch.Tensor)
-        """
         if len(self.buffer) < batch_size:
             # If buffer not full enough, return all
             batch = list(self.buffer)

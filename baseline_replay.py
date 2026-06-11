@@ -7,7 +7,7 @@ from utils import evaluate, get_test_loader, generate_pseudolabels
 from replay_buffer import ReplayBuffer
 
 def train_on_batch(model, images, labels, optimizer, device='cpu'):
-    """Single training step on a batch of (images, labels)."""
+    # Single training step on a batch of (images, labels)
     model.train()
     images, labels = images.to(device), labels.to(device)
     optimizer.zero_grad()
