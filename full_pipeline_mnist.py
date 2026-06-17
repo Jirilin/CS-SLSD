@@ -24,7 +24,6 @@ STREAM_BATCHES = 20  # Number of batches to process (for demonstration)
 NUM_SEEDS = 1        # For reproducibility; can increase for final experiments
 
 def train_on_batch(model, images, labels, optimizer):
-    """Single training step."""
     model.train()
     images, labels = images.to(DEVICE), labels.to(DEVICE)
     optimizer.zero_grad()
@@ -34,12 +33,12 @@ def train_on_batch(model, images, labels, optimizer):
     return loss.item()
 
 def run_offline_on_stream(model, test_loader):
-    """Offline model: never updates; returns constant accuracy."""
+    # Offline: no updates, just evaluate on the stream.
     acc = evaluate(model, test_loader, DEVICE)
     return [acc] * STREAM_BATCHES
 
 def run_naive_on_stream(model, sim, test_loader):
-    """Naive online: update on each batch using pseudo-labels (no replay)."""
+    # Naive online: update on each batch using pseudo-labels (no replay).
     accuracies = []
     sim.stream_iter = iter(sim.stream_loader)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE * 0.1)
@@ -56,7 +55,7 @@ def run_naive_on_stream(model, sim, test_loader):
     return accuracies
 
 def run_replay_on_stream(model, sim, test_loader):
-    """Experience replay: buffer + current batch."""
+    # Experience replay: buffer + current batch.
     accuracies = []
     buffer = ReplayBuffer(capacity=BUFFER_CAPACITY, device=DEVICE)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE * 0.1)
@@ -166,14 +165,14 @@ def compare_all_methods():
     
     results = {}
     
-    # ---- 1. Offline ----
+    # 1. Offline
     print("\nLoading Offline model...")
     model = SimpleCNN().to(DEVICE)
     model.load_state_dict(torch.load('baseline_offline_model.pth', map_location=DEVICE))
     accs_offline = run_offline_on_stream(model, test_loader)
     results['Offline'] = accs_offline
     
-    # ---- 2. Naive Online ----
+    # 2. Naive Online
     print("\nRunning Naive Online...")
     np.random.seed(42)  # Reset simulator
     sim2 = MNISTStreamSimulator(
@@ -186,7 +185,7 @@ def compare_all_methods():
     accs_naive = run_naive_on_stream(model, sim2, test_loader)
     results['Naive Online'] = accs_naive
     
-    # ---- 3. Experience Replay ----
+    # 3. Experience Replay
     print("\nRunning Experience Replay...")
     np.random.seed(42)
     sim3 = MNISTStreamSimulator(
@@ -199,7 +198,7 @@ def compare_all_methods():
     accs_replay = run_replay_on_stream(model, sim3, test_loader)
     results['Experience Replay'] = accs_replay
     
-    # ---- 4. Full Pipeline (proposed) ----
+    # 4. Full Pipeline (proposed)
     print("\nRunning Full Pipeline (with detailed logging)...")
     np.random.seed(42)
     sim4 = MNISTStreamSimulator(
@@ -228,7 +227,7 @@ def compare_all_methods():
     accs_full, losses, conf_ratios, buf_sizes, times = run_full_pipeline(model, sim4, test_loader)
     results['Full Pipeline (Ours)'] = accs_full
     
-    # ---- Compute Metrics ----
+    # Compute Metrics and Print Summary Table
     print("\n" + "=" * 70)
     print("SUMMARY METRICS")
     print("=" * 70)
@@ -252,22 +251,7 @@ def compare_all_methods():
     print("-" * 70)
     for name, m in metrics.items():
         print(f"{name:<20} {m['First Acc']:<8.2f} {m['Last Acc']:<8.2f} {m['Avg Acc']:<8.2f} {m['Std']:<8.2f} {m['Forgetting']:<10.2f}")
-    
-    # ---- Positives & Negatives ----
-    print("\n" + "=" * 70)
-    print("POSITIVES & NEGATIVES")
-    print("=" * 70)
-    print("✅ Full Pipeline Positives:")
-    print("  - Integrates pseudo-labeling with replay in a single loop.")
-    print("  - Logs detailed metrics per batch (accuracy, loss, confidence, buffer size).")
-    print("  - Reduces forgetting compared to naive online (check Forgetting column).")
-    print("  - Modular design allows easy swapping of components.")
-    print("\n⚠️ Full Pipeline Negatives:")
-    print("  - Still relies on a fixed confidence threshold (0.9) – may discard useful data.")
-    print("  - Buffer uses FIFO; may lose important samples if buffer fills.")
-    print("  - Performance depends on buffer size and replay batch size (hyperparameters).")
-    print("  - Does not adapt to concept drift beyond simple replay.")
-    
+        
     # ---- Save metrics to CSV ----
     df = pd.DataFrame({
         'Batch': list(range(len(accs_full))),
@@ -278,7 +262,7 @@ def compare_all_methods():
         'Time_Seconds': times
     })
     df.to_csv('metrics_full_pipeline.csv', index=False)
-    print("\n📁 Metrics saved to 'metrics_full_pipeline.csv'")
+    print("\nMetrics saved to 'metrics_full_pipeline.csv'")
     
     # ---- Plotting ----
     plt.figure(figsize=(12, 5))
@@ -305,7 +289,7 @@ def compare_all_methods():
     plt.tight_layout()
     plt.savefig('pipeline_comparison.png', dpi=150)
     plt.show()
-    print("📊 Plots saved to 'pipeline_comparison.png'")
+    print("Plots saved to 'pipeline_comparison.png'")
 
 if __name__ == "__main__":
     compare_all_methods()
