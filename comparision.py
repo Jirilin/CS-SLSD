@@ -136,8 +136,8 @@ def main():
             print(row)
 
     df = pd.DataFrame(records)
-    csv_name = f"today_results_{args.dataset}_{args.distribution}.csv"
-    png_name = f"today_comparison_{args.dataset}_{args.distribution}.png"
+    csv_name = f"Comparision_results_{args.dataset}_{args.distribution}.csv"
+    png_name = f"Comparision_{args.dataset}_{args.distribution}.png"
     df.to_csv(csv_name, index=False)
 
     plt.figure(figsize=(8,5))
