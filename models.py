@@ -1,53 +1,50 @@
-"""
-models.py - CNN architecture for MNIST classification
-"""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class SimpleCNN(nn.Module):
-    """
-    A small CNN suitable for MNIST (28x28 grayscale images).
-    Outputs logits for 10 classes.
-    """
-    def __init__(self):
-        super(SimpleCNN, self).__init__()
-        # First convolutional layer: 1 input channel -> 32 output channels
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
-        # Second convolutional layer: 32 -> 64 channels
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-        # Max pooling layer (2x2)
-        self.pool = nn.MaxPool2d(2, 2)
-        # Fully connected layers
-        self.fc1 = nn.Linear(64 * 7 * 7, 128)   # after two poolings, 28x28 -> 7x7
-        self.fc2 = nn.Linear(128, 10)
-        # Dropout for regularization
-        self.dropout = nn.Dropout(0.25)
+class FlexibleCNN(nn.Module):
+    def __init__(self, in_channels=1, num_classes=10, image_size=28):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(in_channels, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+        )
+        reduced = image_size // 4
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(64 * reduced * reduced, 128),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.25),
+            nn.Linear(128, num_classes),
+        )
 
     def forward(self, x):
-        # Conv block 1: conv -> ReLU -> pool
-        x = self.pool(F.relu(self.conv1(x)))
-        # Conv block 2: conv -> ReLU -> pool
-        x = self.pool(F.relu(self.conv2(x)))
-        # Flatten: from (batch, 64, 7, 7) to (batch, 64*7*7)
-        x = x.view(-1, 64 * 7 * 7)
-        # Fully connected layers with dropout
-        x = F.relu(self.fc1(x))
-        x = self.dropout(x)
-        x = self.fc2(x)
-        return x
+        return self.classifier(self.features(x))
+
+class SimpleCNN(FlexibleCNN):
+    """Backward-compatible MNIST model used by older files."""
+    def __init__(self):
+        super().__init__(in_channels=1, num_classes=10, image_size=28)
+
+def build_model(dataset_name: str):
+    name = dataset_name.lower()
+    if name in ["mnist", "fashionmnist", "kmnist"]:
+        return FlexibleCNN(in_channels=1, image_size=28)
+    if name in ["cifar10", "svhn"]:
+        return FlexibleCNN(in_channels=3, image_size=32)
+    raise ValueError(f"Unsupported dataset: {dataset_name}")
 
 def count_parameters(model):
-    """Utility: count trainable parameters in model"""
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-# Quick test
 if __name__ == "__main__":
-    model = SimpleCNN()
-    print(f"Model has {count_parameters(model):,} trainable parameters")
-    
-    # Test forward pass
-    dummy_input = torch.randn(1, 1, 28, 28)
-    output = model(dummy_input)
-    print(f"Input shape: {dummy_input.shape}")
-    print(f"Output shape: {output.shape} (10 classes)")
+    for ds in ["MNIST", "CIFAR10", "SVHN"]:
+        m = build_model(ds)
+        x = torch.randn(2, 1, 28, 28) if ds == "MNIST" else torch.randn(2, 3, 32, 32)
+        print(ds, m(x).shape, count_parameters(m))
