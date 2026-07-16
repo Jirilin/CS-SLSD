@@ -1,0 +1,6 @@
+batch,naive_acc,replay_acc,ewc_acc,naive_pseudo_count,replay_pseudo_count,ewc_pseudo_count,buffer_size,buffer_evicted_oldest
+1,21.13,21.13,21.15,64,64,64,64,0
+5,21.11,21.1,21.12,64,62,64,318,0
+10,21.09,21.12,21.13,64,64,64,638,0
+15,21.11,21.09,21.13,64,63,64,957,0
+20,21.1,21.12,21.11,64,64,64,1000,277

@@ -1,23 +1,44 @@
-# Python virtual environments
+# ==========================================
+# UNIVERSAL GITIGNORE FOR MAC & PYTHON
+# ==========================================
+
+# Python Virtual Environments (The #1 cause of 10k+ changes)
 venv/
 .venv/
 env/
 ENV/
+env.bak/
+venv.bak/
 
-# Data and Datasets (adjust names if your dataset folder is named differently)
-data/
-datasets/
-*.csv
-*.json
-
-# Deep Learning / ML Weights
-*.pt
-*.pth
-*.pkl
-*.h5
-
-# Python cache & OS files
+# Python Cache & Compiled Files
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+
+# System & Tool Folders
 .DS_Store
-.metadata/
+.AppleDouble
+.LSOverride
+.android/
+.matplotlib/
+.npm/
+.claude/
+_cacache/
+adbkey*
+fontlist*.json
+
+# Security Keys & Credentials
+credentials.json
+token.json
+*.pem
+*.key
+
+# Large Datasets & Model Weights
+*.rar
+*.zip
+*.tar.gz
+*.pth
+*.pt
+*.onnx
+*.h5
