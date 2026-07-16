@@ -1,0 +1,13 @@
+{
+  "method": "centroid_ewc",
+  "seed": 3,
+  "initial_accuracy": 0.9248,
+  "final_accuracy": 0.9248,
+  "mean_stream_accuracy": 0.9248000000000001,
+  "forgetting_proxy": 0.0,
+  "mean_pseudo_precision": NaN,
+  "mean_pseudo_coverage": 0.0,
+  "mean_parameter_change": 0.0,
+  "fisher_mean": 0.0003114831924904138,
+  "fisher_max": 2.3447425365448
+}

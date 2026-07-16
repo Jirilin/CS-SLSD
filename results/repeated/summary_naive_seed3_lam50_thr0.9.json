@@ -1,0 +1,11 @@
+{
+  "method": "naive",
+  "seed": 3,
+  "initial_accuracy": 0.9248,
+  "final_accuracy": 0.9327,
+  "mean_stream_accuracy": 0.9256499999999999,
+  "forgetting_proxy": -0.007900000000000018,
+  "mean_pseudo_precision": 0.9657777905464172,
+  "mean_pseudo_coverage": 0.8158203125,
+  "mean_parameter_change": 0.017793935433947534
+}
