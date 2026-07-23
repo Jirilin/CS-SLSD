@@ -18,9 +18,6 @@ from metrics import accuracy, class_accuracy, snapshot, parameter_change, forget
 
 
 def train_epochs(model, loader, optimizer, device, epochs: int, ewc=None) -> float:
-    """
-    Executes supervised or regularized training over a DataLoader for a given number of epochs.
-    """
     if epochs <= 0 or loader is None:
         return float("nan")
     losses = []
@@ -39,9 +36,7 @@ def train_epochs(model, loader, optimizer, device, epochs: int, ewc=None) -> flo
 
 
 def make_loader(x, y, batch_size=64, shuffle=True):
-    """
-    Creates a PyTorch DataLoader from feature and label tensors.
-    """
+
     if x is None or x.numel() == 0:
         return None
     return DataLoader(
