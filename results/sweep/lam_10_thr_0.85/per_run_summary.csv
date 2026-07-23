@@ -1,3 +1,3 @@
-method,seed,mean_accuracy,final_accuracy,mean_precision,mean_coverage,mean_parameter_change
-centroid_ewc,0,0.9320999999999999,0.9321,,0.0,0.0
-centroid_ewc,1,0.9373000000000001,0.9373,,0.0,0.0
+method,seed,mean_accuracy,final_accuracy,mean_precision,mean_coverage,mean_drift,mean_parameter_change
+centroid_ewc,0,0.9291,0.9291,,0.0,0.11893267580308016,0.0
+centroid_ewc,1,0.9355,0.9355,,0.0,0.11759929784573611,0.0

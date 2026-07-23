@@ -1,13 +1,17 @@
 {
   "method": "centroid_ewc",
   "seed": 1,
-  "initial_accuracy": 0.9373,
-  "final_accuracy": 0.9373,
-  "mean_stream_accuracy": 0.9373000000000001,
-  "forgetting_proxy": 0.0,
+  "initial_accuracy": 0.9355,
+  "final_accuracy": 0.9355,
+  "mean_stream_accuracy": 0.9355,
+  "classwise_forgetting": 0.0,
   "mean_pseudo_precision": NaN,
   "mean_pseudo_coverage": 0.0,
+  "mean_distribution_tv": 0.41629464285714285,
+  "mean_feature_centroid_drift": 0.11199933128165347,
   "mean_parameter_change": 0.0,
-  "fisher_mean": 0.00017207299242727458,
-  "fisher_max": 0.698340654373169
+  "final_buffer_size": 0,
+  "fisher_mean": 0.00017424441466573626,
+  "fisher_max": 0.6322168707847595,
+  "fisher_nonzero_fraction": 0.5540482401847839
 }
