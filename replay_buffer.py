@@ -1,31 +1,56 @@
+from __future__ import annotations
+from dataclasses import dataclass
 import random
 import torch
-from collections import deque
 
-class ReplayBuffer:
-    def __init__(self, capacity=1000, device="cpu"):
+
+@dataclass
+class ReplayStats:
+    added: int
+    replaced: int
+    current_size: int
+
+
+class ReservoirReplayBuffer:
+    """Fixed-size reservoir replay buffer.
+
+    Every observed sample has approximately equal probability of remaining in
+    memory. This is less biased than FIFO when the stream distribution changes.
+    """
+
+    def __init__(self, capacity: int, seed: int = 0):
+        if capacity <= 0:
+            raise ValueError("capacity must be positive")
         self.capacity = capacity
-        self.device = device
-        self.buffer = deque(maxlen=capacity)
-        self.total_added = 0
-        self.total_evicted = 0
+        self.rng = random.Random(seed)
+        self.images: list[torch.Tensor] = []
+        self.labels: list[int] = []
+        self.seen = 0
 
-    def add(self, images, labels):
-        for i in range(len(images)):
-            if len(self.buffer) == self.capacity:
-                self.total_evicted += 1
-            self.buffer.append((images[i].detach().cpu(), labels[i].detach().cpu()))
-            self.total_added += 1
+    def __len__(self) -> int:
+        return len(self.images)
 
-    def sample(self, batch_size):
-        if len(self.buffer) == 0:
-            return None, None
-        batch = list(self.buffer) if len(self.buffer) < batch_size else random.sample(self.buffer, batch_size)
-        images, labels = zip(*batch)
-        return torch.stack(images).to(self.device), torch.tensor(labels, device=self.device)
+    def add_batch(self, images: torch.Tensor, labels: torch.Tensor) -> ReplayStats:
+        added = replaced = 0
+        for image, label in zip(images.detach().cpu(), labels.detach().cpu()):
+            self.seen += 1
+            if len(self.images) < self.capacity:
+                self.images.append(image.clone())
+                self.labels.append(int(label))
+                added += 1
+            else:
+                j = self.rng.randrange(self.seen)
+                if j < self.capacity:
+                    self.images[j] = image.clone()
+                    self.labels[j] = int(label)
+                    replaced += 1
+        return ReplayStats(added, replaced, len(self.images))
 
-    def stats(self):
-        return {"size": len(self.buffer), "capacity": self.capacity, "added": self.total_added, "evicted_oldest": self.total_evicted}
-
-    def __len__(self):
-        return len(self.buffer)
+    def sample(self, n: int, device: torch.device) -> tuple[torch.Tensor, torch.Tensor] | None:
+        if not self.images:
+            return None
+        n = min(n, len(self.images))
+        idx = self.rng.sample(range(len(self.images)), n)
+        x = torch.stack([self.images[i] for i in idx]).to(device)
+        y = torch.tensor([self.labels[i] for i in idx], dtype=torch.long, device=device)
+        return x, y
