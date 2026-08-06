@@ -52,11 +52,21 @@ def make_loader(x, y, batch_size=64, shuffle=True):
 def parse_args():
     p = argparse.ArgumentParser(description="Controlled MNIST continual semi-supervised experiment")
     p.add_argument(
-        "--method",
+        "--method", "--methods",
+        nargs="+",
         choices=["naive", "centroid", "centroid_ewc", "centroid_replay", "centroid_replay_ewc"],
-        default="centroid_ewc"
+        default=["centroid_ewc"],
+        dest="methods",
+        help="One or more method names to execute"
     )
-    p.add_argument("--seed", type=int, default=0)
+    p.add_argument(
+        "--seed", "--seeds",
+        type=int,
+        nargs="+",
+        default=[0],
+        dest="seeds",
+        help="One or more random seeds to execute"
+    )
     p.add_argument("--ewc-lambda", "--ewc_lambda", type=float, default=50.0, dest="ewc_lambda")
     p.add_argument("--threshold", "--confidence-threshold", "--confidence_threshold", type=float, default=0.90, dest="threshold")
     p.add_argument("--replay-capacity", "--replay_capacity", type=int, default=1000, dest="replay_capacity")
@@ -77,15 +87,12 @@ def parse_args():
     return p.parse_args()
 
 
-def main():
-    args = parse_args()
-    
-    # Handle smoke test overrides
+def run_single_experiment(method: str, seed: int, args) -> pd.DataFrame:
     initial_epochs = 1 if args.smoke else args.initial_epochs
     stream_batches = 2 if args.smoke else args.stream_batches
 
     cfg = ExperimentConfig(
-        seed=args.seed,
+        seed=seed,
         ewc_lambda=args.ewc_lambda,
         confidence_threshold=args.threshold,
         initial_epochs=initial_epochs,
@@ -122,8 +129,8 @@ def main():
     reference_centroids = labeler.centroids.detach().clone()
 
     # Configure continual learning components (EWC & Replay)
-    uses_ewc = "ewc" in args.method
-    uses_replay = "replay" in args.method
+    uses_ewc = "ewc" in method
+    uses_replay = "replay" in method
     ewc = OnlineEWC(model, device, cfg.ewc_lambda, cfg.online_ewc_gamma) if uses_ewc else None
     if ewc:
         ewc.consolidate(initial_eval, cfg.fisher_samples, use_true_labels=True)
@@ -132,7 +139,7 @@ def main():
     initial_acc = accuracy(model, test_loader, device)
     class_hist = [class_accuracy(model, test_loader, device)]
     rows = [{
-        "batch": -1, "method": args.method, "seed": cfg.seed,
+        "batch": -1, "method": method, "seed": cfg.seed,
         "test_accuracy": initial_acc, "pseudo_precision": np.nan,
         "pseudo_coverage": np.nan, "agreement": np.nan,
         "distribution_tv": 0.0, "feature_centroid_drift": 0.0,
@@ -142,7 +149,7 @@ def main():
     previous = snapshot(model)
 
     for batch in stream.batches():
-        if args.method == "naive":
+        if method == "naive":
             model.eval()
             with torch.no_grad():
                 x = batch.images.to(device)
@@ -202,7 +209,7 @@ def main():
         dist_row = distribution.iloc[batch.batch_id]
         
         rows.append({
-            "batch": batch.batch_id, "method": args.method, "seed": cfg.seed,
+            "batch": batch.batch_id, "method": method, "seed": cfg.seed,
             "test_accuracy": test_acc, "pseudo_precision": precision,
             "pseudo_coverage": coverage, "agreement": agreement,
             "distribution_tv": float(dist_row.total_variation_from_previous),
@@ -213,7 +220,7 @@ def main():
         })
 
     df = pd.DataFrame(rows)
-    stem = f"{args.method}_seed{cfg.seed}_lam{cfg.ewc_lambda:g}_thr{cfg.confidence_threshold:g}"
+    stem = f"{method}_seed{cfg.seed}_lam{cfg.ewc_lambda:g}_thr{cfg.confidence_threshold:g}"
     df.to_csv(out / f"metrics_{stem}.csv", index=False)
     
     class_df = pd.DataFrame(class_hist, columns=[f"class_{c}_accuracy" for c in range(10)])
@@ -221,7 +228,7 @@ def main():
     class_df.to_csv(out / f"class_accuracy_{stem}.csv", index=False)
 
     summary = {
-        "method": args.method,
+        "method": method,
         "seed": cfg.seed,
         "initial_accuracy": float(df.iloc[0].test_accuracy),
         "final_accuracy": float(df.iloc[-1].test_accuracy),
@@ -240,7 +247,26 @@ def main():
     with open(out / f"summary_{stem}.json", "w") as f:
         json.dump(summary, f, indent=2)
         
+    print(f"\n--- Completed method={method}, seed={cfg.seed} ---")
     print(json.dumps(summary, indent=2))
+    return df
+
+
+def main():
+    args = parse_args()
+    out = Path(args.output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    
+    all_dfs = []
+    for method in args.methods:
+        for seed in args.seeds:
+            df = run_single_experiment(method, seed, args)
+            all_dfs.append(df)
+
+    if all_dfs:
+        combined_df = pd.concat(all_dfs, ignore_index=True)
+        combined_df.to_csv(out / "all_runs.csv", index=False)
+        print(f"\nSaved concatenated results to {out / 'all_runs.csv'}")
 
 
 if __name__ == "__main__":
