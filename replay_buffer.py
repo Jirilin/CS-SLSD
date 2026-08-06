@@ -12,13 +12,7 @@ class ReplayStats:
 
 
 class ReservoirReplayBuffer:
-    """Fixed-size reservoir replay buffer.
-
-    Every observed sample has approximately equal probability of remaining in
-    memory. This is less biased than FIFO when the stream distribution changes.
-    """
-
-    def __init__(self, capacity: int, seed: int = 0):
+        def __init__(self, capacity: int, seed: int = 0):
         if capacity <= 0:
             raise ValueError("capacity must be positive")
         self.capacity = capacity
