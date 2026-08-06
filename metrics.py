@@ -44,10 +44,34 @@ def parameter_change(previous, model, eps: float = 1e-12) -> float:
 
 
 def forgetting_from_history(history: list[list[float]]) -> float:
-    """Mean class-wise drop from best previous accuracy to final accuracy."""
+
     if len(history) < 2:
         return 0.0
     arr = np.asarray(history, dtype=float)
     best = np.nanmax(arr[:-1], axis=0)
     final = arr[-1]
     return float(np.nanmean(np.maximum(0.0, best - final)))
+
+
+def task_accuracy_vector(model, task_loaders, device):
+    return {task_id: accuracy(model, loader, device) for task_id, loader in task_loaders.items()}
+
+
+def average_incremental_accuracy(task_history):
+    if not task_history:
+        return float("nan")
+    values = [v for row in task_history for v in row.values()]
+    return float(np.mean(values)) if values else float("nan")
+
+
+def backward_transfer_proxy(task_history):
+    
+    if len(task_history) < 2:
+        return float("nan")
+    first, final = task_history[0], task_history[-1]
+    return float(np.mean([final[k] - first[k] for k in first]))
+
+
+def stability_plasticity_score(final_accuracy, forgetting, parameter_change):
+    
+    return float(final_accuracy - forgetting - 0.1 * parameter_change)
