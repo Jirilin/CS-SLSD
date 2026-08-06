@@ -17,20 +17,7 @@ class StreamBatch:
 
 
 class FrozenMNISTStream:
-    """
-    Deterministic 20-batch MNIST stream.
-
-    Design:
-    - Initial labelled set: exactly `initial_per_class` trusted samples/class.
-    - Each stream batch has a fixed dominant class pair.
-    - `dominant_fraction` of each batch comes from the pair; the rest is
-      spread across the other classes.
-    - Labels are hidden from the learner but retained for evaluation.
-
-    This produces a controlled class-prior distribution shift.
-    """
-
-    PAIR_SCHEDULE = [
+        PAIR_SCHEDULE = [
         (0, 1), (0, 1), (2, 3), (2, 3), (4, 5),
         (4, 5), (6, 7), (6, 7), (8, 9), (8, 9),
         (0, 2), (1, 3), (4, 6), (5, 7), (8, 0),
@@ -125,3 +112,13 @@ class FrozenMNISTStream:
             rows.append(row)
             previous = proportions
         return pd.DataFrame(rows)
+
+    def class_group_test_loaders(self, batch_size: int):
+                targets = np.asarray(self.test_dataset.targets)
+        loaders = {}
+        for task_id, pair in enumerate([(0,1),(2,3),(4,5),(6,7),(8,9)]):
+            indices = np.where(np.isin(targets, pair))[0].tolist()
+            loaders[task_id] = DataLoader(
+                Subset(self.test_dataset, indices), batch_size=batch_size, shuffle=False
+            )
+        return loaders
