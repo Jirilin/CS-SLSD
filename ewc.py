@@ -5,13 +5,6 @@ import torch.nn.functional as F
 
 
 class OnlineEWC:
-    """Online Elastic Weight Consolidation with diagonal empirical Fisher.
-
-    Fisher is estimated by averaging squared gradients of log likelihood over
-    multiple samples. Online consolidation decays old importance by gamma and
-    adds the latest Fisher estimate.
-    """
-
     def __init__(self, model, device, strength: float = 50.0, gamma: float = 0.95):
         self.model = model
         self.device = device
