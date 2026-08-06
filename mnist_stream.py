@@ -17,16 +17,22 @@ class StreamBatch:
 
 
 class FrozenMNISTStream:
-        PAIR_SCHEDULE = [
+    PAIR_SCHEDULE = [
         (0, 1), (0, 1), (2, 3), (2, 3), (4, 5),
         (4, 5), (6, 7), (6, 7), (8, 9), (8, 9),
         (0, 2), (1, 3), (4, 6), (5, 7), (8, 0),
         (9, 1), (2, 4), (3, 5), (6, 8), (7, 9),
     ]
 
-    def __init__(self, data_root: str, seed: int, initial_per_class: int,
-                 stream_batches: int, stream_batch_size: int,
-                 dominant_fraction: float):
+    def __init__(
+        self,
+        data_root: str,
+        seed: int,
+        initial_per_class: int,
+        stream_batches: int,
+        stream_batch_size: int,
+        dominant_fraction: float,
+    ):
         if stream_batches > len(self.PAIR_SCHEDULE):
             raise ValueError(f"stream_batches must be <= {len(self.PAIR_SCHEDULE)}")
         if not 0.5 <= dominant_fraction < 1.0:
@@ -84,12 +90,18 @@ class FrozenMNISTStream:
         return batches
 
     def initial_loader(self, batch_size: int) -> DataLoader:
-        return DataLoader(Subset(self.dataset, self.labelled_indices), batch_size=batch_size,
-                          shuffle=True)
+        return DataLoader(
+            Subset(self.dataset, self.labelled_indices),
+            batch_size=batch_size,
+            shuffle=True,
+        )
 
     def initial_eval_loader(self, batch_size: int) -> DataLoader:
-        return DataLoader(Subset(self.dataset, self.labelled_indices), batch_size=batch_size,
-                          shuffle=False)
+        return DataLoader(
+            Subset(self.dataset, self.labelled_indices),
+            batch_size=batch_size,
+            shuffle=False,
+        )
 
     def test_loader(self, batch_size: int) -> DataLoader:
         return DataLoader(self.test_dataset, batch_size=batch_size, shuffle=False)
@@ -106,19 +118,24 @@ class FrozenMNISTStream:
             labels = np.asarray([int(self.dataset.targets[i]) for i in indices])
             proportions = np.asarray([(labels == c).mean() for c in range(10)])
             tv = 0.0 if previous is None else 0.5 * np.abs(proportions - previous).sum()
-            row = {"batch": batch_id, "dominant_classes": f"{pair[0]},{pair[1]}",
-                   "total_variation_from_previous": tv}
+            row = {
+                "batch": batch_id,
+                "dominant_classes": f"{pair[0]},{pair[1]}",
+                "total_variation_from_previous": tv,
+            }
             row.update({f"class_{c}_proportion": proportions[c] for c in range(10)})
             rows.append(row)
             previous = proportions
         return pd.DataFrame(rows)
 
     def class_group_test_loaders(self, batch_size: int):
-                targets = np.asarray(self.test_dataset.targets)
+        targets = np.asarray(self.test_dataset.targets)
         loaders = {}
-        for task_id, pair in enumerate([(0,1),(2,3),(4,5),(6,7),(8,9)]):
+        for task_id, pair in enumerate([(0, 1), (2, 3), (4, 5), (6, 7), (8, 9)]):
             indices = np.where(np.isin(targets, pair))[0].tolist()
             loaders[task_id] = DataLoader(
-                Subset(self.test_dataset, indices), batch_size=batch_size, shuffle=False
+                Subset(self.test_dataset, indices),
+                batch_size=batch_size,
+                shuffle=False,
             )
         return loaders
