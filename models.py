@@ -4,8 +4,7 @@ import torch.nn.functional as F
 
 
 class SimpleCNN(nn.Module):
-    """MNIST CNN exposing a 128-dimensional feature representation."""
-
+    
     def __init__(self, num_classes: int = 10):
         super().__init__()
         self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
