@@ -2,7 +2,6 @@ import torch
 from replay_buffer import ReservoirReplayBuffer
 from models import SimpleCNN
 
-
 def test_model_shapes():
     model=SimpleCNN(); x=torch.randn(4,1,28,28)
     assert model(x).shape==(4,10)
