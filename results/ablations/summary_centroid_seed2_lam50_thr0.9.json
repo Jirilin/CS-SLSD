@@ -1,0 +1,14 @@
+{
+  "method": "centroid",
+  "seed": 2,
+  "initial_accuracy": 0.9237,
+  "final_accuracy": 0.9237,
+  "mean_stream_accuracy": 0.9237,
+  "classwise_forgetting": 0.0,
+  "mean_pseudo_precision": NaN,
+  "mean_pseudo_coverage": 0.0,
+  "mean_distribution_tv": 0.41629464285714285,
+  "mean_feature_centroid_drift": 0.1143309877121023,
+  "mean_parameter_change": 0.0,
+  "final_buffer_size": 0
+}

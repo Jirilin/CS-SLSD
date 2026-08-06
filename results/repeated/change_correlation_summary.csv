@@ -1,0 +1,5 @@
+method,corr_distribution_accuracy_mean,corr_distribution_accuracy_std,corr_distribution_precision_mean,corr_parameter_accuracy_mean,corr_centroid_accuracy_mean,accuracy_slope_mean
+centroid,,,,,,0.0
+centroid_ewc,,,,,,0.0
+centroid_replay_ewc,,,,,,-8.935559365603017e-18
+naive,,,,-0.16056340645705777,,-0.0022260000000000058

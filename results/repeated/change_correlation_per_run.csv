@@ -1,0 +1,17 @@
+method,seed,corr_distribution_vs_accuracy,corr_distribution_vs_precision,corr_parameter_change_vs_accuracy,corr_centroid_drift_vs_accuracy,accuracy_slope
+centroid,0,,,,,8.935559365603017e-18
+centroid,1,,,,,0.0
+centroid,2,,,,,0.0
+centroid,3,,,,,-8.935559365603017e-18
+centroid,4,,,,,0.0
+centroid_ewc,0,,,,,8.935559365603017e-18
+centroid_ewc,1,,,,,0.0
+centroid_ewc,2,,,,,0.0
+centroid_ewc,3,,,,,-8.935559365603017e-18
+centroid_ewc,4,,,,,0.0
+centroid_replay_ewc,0,,,,,-8.935559365603017e-18
+naive,0,,,0.09386203029930439,,-0.00378661654135342
+naive,1,,,-0.3313317166882127,,0.001629849624060179
+naive,2,,,-0.21002799583042697,,-0.0038696992481202994
+naive,3,,,-0.1346263297574684,,0.0014631578947368084
+naive,4,,,-0.22069302030848523,,-0.006566691729323296

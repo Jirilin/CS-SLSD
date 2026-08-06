@@ -1,0 +1,14 @@
+{
+  "method": "naive",
+  "seed": 2,
+  "initial_accuracy": 0.9237,
+  "final_accuracy": 0.8394,
+  "mean_stream_accuracy": 0.8638750000000002,
+  "classwise_forgetting": 0.13094979046813063,
+  "mean_pseudo_precision": 0.915673753619194,
+  "mean_pseudo_coverage": 0.79453125,
+  "mean_distribution_tv": 0.41629464285714285,
+  "mean_feature_centroid_drift": 0.34869546003284907,
+  "mean_parameter_change": 0.01573353970472535,
+  "final_buffer_size": 0
+}
