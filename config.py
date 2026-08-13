@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 
+
 @dataclass(frozen=True)
 class ExperimentConfig:
+    dataset: str = "mnist"
     seed: int = 0
     data_root: str = "./data"
     initial_per_class: int = 100
@@ -19,4 +21,7 @@ class ExperimentConfig:
     ewc_lambda: float = 50.0
     fisher_samples: int = 1000
     online_ewc_gamma: float = 0.95
+    replay_capacity: int = 1000
+    replay_samples: int = 128
+    online_consolidate_every: int = 5
     device: str = "auto"
