@@ -1,7 +1,8 @@
 opencv-python
-torch>=2.1
 torchvision>=0.16
 numpy>=1.24
 pandas>=2.0
 matplotlib>=3.7
-pytest>=7.4
+torch>=2.0
+numpy>=1.23
+pytest>=8.0
