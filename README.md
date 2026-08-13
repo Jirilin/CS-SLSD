@@ -1,61 +1,73 @@
-# CS-SLSD — Controlled MNIST Weekly Update
+# CS-SLSD — Aug 13 Weekly Research Update
 
-This version creates a controlled continual semi-supervised MNIST experiment with:
+This version turns the earlier MNIST prototype into a shared controlled experiment for **MNIST, CIFAR-10 and SVHN** and compares:
 
-- fixed class-prior stream;
-- recorded class distribution and total-variation change;
-- centroid-refined pseudo-labels with fixed semantic references;
-- corrected diagonal empirical Fisher estimation;
-- EWC and online EWC support;
-- reservoir replay when the buffer becomes full;
-- fixed random seeds and repeated runs;
-- mean ± standard-deviation summaries;
-- pseudo-label precision and coverage;
-- feature-centroid drift and parameter-change measurements;
-- component ablations.
+1. `offline` — train only on initial trusted labels; never update on the stream.
+2. `naive` — confidence pseudo-labels; update on current batch only.
+3. `replay` — confidence pseudo-labels + reservoir replay.
+4. `ewc` — confidence pseudo-labels + Fisher-based EWC.
+5. `proposed` — centroid-refined pseudo-labels + reservoir replay + online EWC.
 
-## Setup
+## 1. Install
 
 ```bash
-python -m venv .venv
-# macOS/Linux
+python3 -m venv .venv
 source .venv/bin/activate
-# Windows
-# .venv\Scripts\activate
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-## Quick validation
+## 2. Test
 
 ```bash
-python run_experiment.py --method centroid_ewc --seed 0
+python -m pytest tests -v
 ```
 
-## Main repeated comparison
+## 3. Smoke test first
 
 ```bash
-python run_repeated.py --seeds 0 1 2 3 4
-python plot_results.py
+python run_experiment.py --dataset mnist --method proposed --seed 0 --smoke
+python run_experiment.py --dataset cifar10 --method proposed --seed 0 --smoke
+python run_experiment.py --dataset svhn --method proposed --seed 0 --smoke
 ```
 
-## Quick parameter sweep
+Smoke tests are only pipeline checks, not dissertation results.
+
+## 4. One real run
 
 ```bash
-python run_sweep.py --quick
+python run_experiment.py --dataset mnist --method proposed --seed 0
 ```
 
-## Ablation study
+## 5. Quick weekly comparison
 
 ```bash
-python run_ablations.py
+python run_extended.py --quick
+python aggregate_results.py --results-dir results/extended
+python plot_results.py --results-dir results/extended
+python run_analysis.py --results-dir results/extended
 ```
 
-## Main methods
+## 6. Full experiment matrix
 
-- `naive`: confidence-only pseudo-labels.
-- `centroid`: confidence + fixed centroid agreement.
-- `centroid_ewc`: centroid refinement + EWC.
-- `centroid_replay`: centroid refinement + reservoir replay.
-- `centroid_replay_ewc`: combined model with replay and online EWC refresh.
+This is 3 datasets × 5 methods × 5 seeds = **75 runs**.
 
-MNIST labels in stream batches are hidden from training and used only to calculate research metrics.
+```bash
+python run_extended.py
+python aggregate_results.py --results-dir results/extended
+python plot_results.py --results-dir results/extended
+python run_analysis.py --results-dir results/extended
+```
+
+Run it when you have enough time. Do not claim the full 75-run study is complete until the files exist.
+
+## Output locations
+
+- Per-batch metrics: `results/extended/metrics_*.csv`
+- Per-class accuracy: `results/extended/class_accuracy_*.csv`
+- Task-pair accuracy: `results/extended/task_accuracy_*.csv`
+- Run summaries: `results/extended/summary_*.json`
+- Mean ± SD table: `results/extended/comparison_mean_std.csv`
+- Dissertation table: `results/extended/dissertation_comparison_table.csv`
+- Figures: `results/extended/figures/`
+- Change analysis: `results/extended/change_correlation_*.csv`
