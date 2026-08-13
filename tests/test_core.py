@@ -1,14 +1,16 @@
 import torch
+from models import VisionCNN
 from replay_buffer import ReservoirReplayBuffer
-from models import SimpleCNN
 
-def test_model_shapes():
-    model=SimpleCNN(); x=torch.randn(4,1,28,28)
-    assert model(x).shape==(4,10)
-    assert model.forward_features(x).shape==(4,128)
-
+def test_model_shapes_mnist_and_rgb():
+    m1 = VisionCNN(1, 10)
+    m3 = VisionCNN(3, 10)
+    assert m1(torch.randn(4, 1, 28, 28)).shape == (4, 10)
+    assert m3(torch.randn(4, 3, 32, 32)).shape == (4, 10)
+    assert m1.forward_features(torch.randn(4, 1, 28, 28)).shape[1] == 128
 
 def test_replay_capacity():
-    b=ReservoirReplayBuffer(10,seed=0)
-    b.add_batch(torch.randn(25,1,28,28),torch.arange(25)%10)
-    assert len(b)==10
+    b = ReservoirReplayBuffer(10, seed=0)
+    for _ in range(5):
+        b.add_batch(torch.randn(8, 1, 28, 28), torch.randint(0, 10, (8,)))
+    assert len(b) == 10
