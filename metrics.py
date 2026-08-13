@@ -1,77 +1,65 @@
 from __future__ import annotations
-from collections import OrderedDict
 import numpy as np
 import torch
 
-
 @torch.no_grad()
 def accuracy(model, loader, device) -> float:
-    model.eval(); correct = total = 0
+    model.eval(); correct = 0; total = 0
     for x, y in loader:
         x, y = x.to(device), y.to(device)
-        pred = model(x).argmax(dim=1)
+        pred = model(x).argmax(1)
         correct += int((pred == y).sum())
         total += y.numel()
     return correct / max(total, 1)
 
 
 @torch.no_grad()
-def class_accuracy(model, loader, device, num_classes: int = 10) -> list[float]:
-    model.eval()
-    correct = np.zeros(num_classes, dtype=np.int64)
-    total = np.zeros(num_classes, dtype=np.int64)
+def class_accuracy(model, loader, device, num_classes: int = 10):
+    model.eval(); correct = np.zeros(num_classes); total = np.zeros(num_classes)
     for x, y in loader:
         x, y = x.to(device), y.to(device)
-        pred = model(x).argmax(dim=1)
+        pred = model(x).argmax(1)
         for c in range(num_classes):
-            mask = y == c
-            total[c] += int(mask.sum())
-            correct[c] += int((pred[mask] == y[mask]).sum())
-    return [float(correct[c] / total[c]) if total[c] else float("nan") for c in range(num_classes)]
-
-
-def snapshot(model) -> OrderedDict[str, torch.Tensor]:
-    return OrderedDict((n, p.detach().cpu().clone()) for n, p in model.named_parameters())
-
-
-def parameter_change(previous, model, eps: float = 1e-12) -> float:
-    num = den = 0.0
-    for name, p in model.named_parameters():
-        old = previous[name].to(p.device)
-        num += float((p.detach() - old).pow(2).sum())
-        den += float(old.pow(2).sum())
-    return (num ** 0.5) / (den ** 0.5 + eps)
-
-
-def forgetting_from_history(history: list[list[float]]) -> float:
-
-    if len(history) < 2:
-        return 0.0
-    arr = np.asarray(history, dtype=float)
-    best = np.nanmax(arr[:-1], axis=0)
-    final = arr[-1]
-    return float(np.nanmean(np.maximum(0.0, best - final)))
+            m = y == c
+            total[c] += int(m.sum())
+            correct[c] += int((pred[m] == y[m]).sum())
+    return np.divide(correct, total, out=np.zeros_like(correct), where=total > 0)
 
 
 def task_accuracy_vector(model, task_loaders, device):
-    return {task_id: accuracy(model, loader, device) for task_id, loader in task_loaders.items()}
+    return [accuracy(model, task_loaders[k], device) for k in sorted(task_loaders)]
 
 
-def average_incremental_accuracy(task_history):
-    if not task_history:
-        return float("nan")
-    values = [v for row in task_history for v in row.values()]
-    return float(np.mean(values)) if values else float("nan")
+def snapshot(model):
+    return {k: v.detach().clone().cpu() for k, v in model.state_dict().items() if torch.is_floating_point(v)}
 
 
-def backward_transfer_proxy(task_history):
-    
-    if len(task_history) < 2:
-        return float("nan")
-    first, final = task_history[0], task_history[-1]
-    return float(np.mean([final[k] - first[k] for k in first]))
+def parameter_change(previous, model) -> float:
+    numerator = 0.0; denominator = 0.0
+    for name, tensor in model.state_dict().items():
+        if name in previous and torch.is_floating_point(tensor):
+            now = tensor.detach().cpu()
+            numerator += float((now - previous[name]).pow(2).sum())
+            denominator += float(previous[name].pow(2).sum())
+    return (numerator ** 0.5) / (denominator ** 0.5 + 1e-12)
 
 
-def stability_plasticity_score(final_accuracy, forgetting, parameter_change):
-    
-    return float(final_accuracy - forgetting - 0.1 * parameter_change)
+def forgetting_from_history(history) -> float:
+    arr = np.asarray(history, dtype=float)
+    if arr.shape[0] < 2:
+        return 0.0
+    best = np.nanmax(arr[:-1], axis=0)
+    final = arr[-1]
+    return float(np.nanmean(np.maximum(best - final, 0.0)))
+
+
+def average_incremental_accuracy(task_history) -> float:
+    arr = np.asarray(task_history, dtype=float)
+    return float(np.nanmean(arr))
+
+
+def backward_transfer_proxy(task_history) -> float:
+    arr = np.asarray(task_history, dtype=float)
+    if arr.shape[0] < 2:
+        return 0.0
+    return float(np.nanmean(arr[-1] - arr[0]))
