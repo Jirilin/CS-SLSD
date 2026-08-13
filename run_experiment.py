@@ -1,6 +1,7 @@
 from __future__ import annotations
 import argparse
 import json
+import time
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -9,17 +10,25 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from config import ExperimentConfig
 from seed_utils import set_global_seed, choose_device
-from models import SimpleCNN
-from mnist_stream import FrozenMNISTStream
+from models import VisionCNN
+from dataset_stream import ControlledVisionStream
 from centroid_pseudolabel import CentroidRefinedPseudoLabeler
 from ewc import OnlineEWC
 from replay_buffer import ReservoirReplayBuffer
-from metrics import accuracy, class_accuracy, snapshot, parameter_change, forgetting_from_history
+from metrics import accuracy, class_accuracy, task_accuracy_vector, snapshot, parameter_change, forgetting_from_history, average_incremental_accuracy, backward_transfer_proxy
 
 
-def train_epochs(model, loader, optimizer, device, epochs: int, ewc=None) -> float:
-    
-    if epochs <= 0 or loader is None:
+METHODS = ["offline", "naive", "replay", "ewc", "proposed"]
+
+
+def make_loader(x, y, batch_size=64, shuffle=True):
+    if x is None or y is None or x.numel() == 0:
+        return None
+    return DataLoader(TensorDataset(x.detach().cpu(), y.detach().cpu()), batch_size=batch_size, shuffle=shuffle)
+
+
+def train_epochs(model, loader, optimizer, device, epochs: int, ewc=None):
+    if loader is None or epochs <= 0:
         return float("nan")
     losses = []
     for _ in range(epochs):
@@ -36,166 +45,150 @@ def train_epochs(model, loader, optimizer, device, epochs: int, ewc=None) -> flo
     return float(np.mean(losses)) if losses else float("nan")
 
 
-def make_loader(x, y, batch_size=64, shuffle=True):
-    """
-    Creates a PyTorch DataLoader from feature and label tensors.
-    """
-    if x is None or x.numel() == 0:
-        return None
-    return DataLoader(
-        TensorDataset(x.detach().cpu(), y.detach().cpu()),
-        batch_size=batch_size,
-        shuffle=shuffle
-    )
+def confidence_pseudo_labels(model, images, hidden_labels, device, threshold):
+    model.eval()
+    with torch.no_grad():
+        x = images.to(device)
+        probs = torch.softmax(model(x), dim=1)
+        conf, pred = probs.max(1)
+        mask = conf >= threshold
+        accepted_x, accepted_y = x[mask], pred[mask]
+        coverage = float(mask.float().mean().item())
+        precision = float("nan")
+        if mask.any():
+            precision = float((pred[mask].cpu() == hidden_labels[mask]).float().mean().item())
+    return accepted_x, accepted_y, coverage, precision
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Controlled MNIST continual semi-supervised experiment")
-    p.add_argument(
-        "--method", "--methods",
-        nargs="+",
-        choices=["naive", "centroid", "centroid_ewc", "centroid_replay", "centroid_replay_ewc"],
-        default=["centroid_ewc"],
-        dest="methods",
-        help="One or more method names to execute"
-    )
-    p.add_argument(
-        "--seed", "--seeds",
-        type=int,
-        nargs="+",
-        default=[0],
-        dest="seeds",
-        help="One or more random seeds to execute"
-    )
-    p.add_argument("--ewc-lambda", "--ewc_lambda", type=float, default=50.0, dest="ewc_lambda")
-    p.add_argument("--threshold", "--confidence-threshold", "--confidence_threshold", type=float, default=0.90, dest="threshold")
-    p.add_argument("--replay-capacity", "--replay_capacity", type=int, default=1000, dest="replay_capacity")
-    p.add_argument("--replay-samples", "--replay_samples", type=int, default=128, dest="replay_samples")
-    p.add_argument(
-        "--online-consolidate-every",
-        "--online_consolidate_every",
-        type=int,
-        default=5,
-        dest="online_consolidate_every",
-        help="Re-estimate online Fisher from trusted replay pseudo-labels every N batches; 0 disables"
-    )
-    p.add_argument("--output-dir", "--output_dir", default="results/single", dest="output_dir")
-    p.add_argument("--initial-epochs", "--initial_epochs", type=int, default=5, dest="initial_epochs")
-    p.add_argument("--stream-batches", "--stream_batches", type=int, default=20, dest="stream_batches")
-    p.add_argument("--fisher-samples", "--fisher_samples", type=int, default=200, dest="fisher_samples")
-    p.add_argument("--smoke", action="store_true", help="Run a fast 2-batch smoke test")
+    p = argparse.ArgumentParser(description="Continual semi-supervised vision experiment")
+    p.add_argument("--dataset", choices=["mnist", "cifar10", "svhn"], default="mnist")
+    p.add_argument("--method", choices=METHODS, default="proposed")
+    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--ewc-lambda", type=float, default=50.0)
+    p.add_argument("--threshold", type=float, default=0.90)
+    p.add_argument("--replay-capacity", type=int, default=1000)
+    p.add_argument("--replay-samples", type=int, default=128)
+    p.add_argument("--initial-epochs", type=int, default=None)
+    p.add_argument("--online-epochs", type=int, default=None)
+    p.add_argument("--stream-batches", type=int, default=None)
+    p.add_argument("--stream-batch-size", type=int, default=None)
+    p.add_argument("--fisher-samples", type=int, default=None)
+    p.add_argument("--online-consolidate-every", type=int, default=5)
+    p.add_argument("--output-dir", default="results/single")
+    p.add_argument("--smoke", action="store_true")
     return p.parse_args()
 
 
-def run_single_experiment(method: str, seed: int, args) -> pd.DataFrame:
-    initial_epochs = 1 if args.smoke else args.initial_epochs
-    stream_batches = 2 if args.smoke else args.stream_batches
-
-    cfg = ExperimentConfig(
-        seed=seed,
-        ewc_lambda=args.ewc_lambda,
-        confidence_threshold=args.threshold,
-        initial_epochs=initial_epochs,
-        stream_batches=stream_batches,
-    )
+def main():
+    args = parse_args()
+    overrides = dict(dataset=args.dataset, seed=args.seed, ewc_lambda=args.ewc_lambda,
+                     confidence_threshold=args.threshold, replay_capacity=args.replay_capacity,
+                     replay_samples=args.replay_samples, online_consolidate_every=args.online_consolidate_every)
+    for arg_name, cfg_name in [
+        ("initial_epochs", "initial_epochs"), ("online_epochs", "online_epochs"),
+        ("stream_batches", "stream_batches"), ("stream_batch_size", "stream_batch_size"),
+        ("fisher_samples", "fisher_samples")
+    ]:
+        value = getattr(args, arg_name)
+        if value is not None:
+            overrides[cfg_name] = value
+    if args.smoke:
+        overrides.update(initial_epochs=1, online_epochs=1, stream_batches=2,
+                         stream_batch_size=128, fisher_samples=100)
+    cfg = ExperimentConfig(**overrides)
     set_global_seed(cfg.seed)
     device = choose_device(cfg.device)
-    out = Path(args.output_dir)
-    out.mkdir(parents=True, exist_ok=True)
+    output = Path(args.output_dir)
+    output.mkdir(parents=True, exist_ok=True)
 
-    stream = FrozenMNISTStream(
-        cfg.data_root, cfg.seed, cfg.initial_per_class,
-        cfg.stream_batches, cfg.stream_batch_size,
-        cfg.dominant_fraction
-    )
+    stream = ControlledVisionStream(cfg.dataset, cfg.data_root, cfg.seed, cfg.initial_per_class,
+                                    cfg.stream_batches, cfg.stream_batch_size, cfg.dominant_fraction)
+    spec = stream.spec
     distribution = stream.distribution_table()
-    distribution.to_csv(out / f"distribution_seed{cfg.seed}.csv", index=False)
+    distribution.to_csv(output / ("distribution_%s_seed%d.csv" % (spec.name, cfg.seed)), index=False)
 
-    model = SimpleCNN().to(device)
+    model = VisionCNN(spec.in_channels, spec.num_classes).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg.learning_rate)
     initial_train = stream.initial_loader(cfg.train_batch_size)
     initial_eval = stream.initial_eval_loader(cfg.test_batch_size)
     test_loader = stream.test_loader(cfg.test_batch_size)
-    
-    # Train model on initial labeled dataset
+    task_loaders = stream.class_group_test_loaders(cfg.test_batch_size)
+
+    start_time = time.perf_counter()
     train_epochs(model, initial_train, optimizer, device, cfg.initial_epochs)
 
-    # Initialize centroid pseudo-labeler
-    labeler = CentroidRefinedPseudoLabeler(
-        model, device, cfg.confidence_threshold,
-        cfg.centroid_weight, cfg.centroid_temperature
-    )
+    labeler = CentroidRefinedPseudoLabeler(model, device, spec.num_classes,
+                                           cfg.confidence_threshold, cfg.centroid_weight,
+                                           cfg.centroid_temperature)
     labeler.fit_reference_centroids(initial_eval)
     reference_centroids = labeler.centroids.detach().clone()
 
-    # Configure continual learning components (EWC & Replay)
-    uses_ewc = "ewc" in method
-    uses_replay = "replay" in method
+    uses_replay = args.method in ["replay", "proposed"]
+    uses_ewc = args.method in ["ewc", "proposed"]
+    uses_centroid = args.method == "proposed"
+    replay = ReservoirReplayBuffer(cfg.replay_capacity, cfg.seed) if uses_replay else None
     ewc = OnlineEWC(model, device, cfg.ewc_lambda, cfg.online_ewc_gamma) if uses_ewc else None
-    if ewc:
+    if ewc is not None:
         ewc.consolidate(initial_eval, cfg.fisher_samples, use_true_labels=True)
-    replay = ReservoirReplayBuffer(args.replay_capacity, cfg.seed) if uses_replay else None
 
     initial_acc = accuracy(model, test_loader, device)
-    class_hist = [class_accuracy(model, test_loader, device)]
+    class_hist = [class_accuracy(model, test_loader, device, spec.num_classes)]
+    task_hist = [task_accuracy_vector(model, task_loaders, device)]
     rows = [{
-        "batch": -1, "method": method, "seed": cfg.seed,
-        "test_accuracy": initial_acc, "pseudo_precision": np.nan,
-        "pseudo_coverage": np.nan, "agreement": np.nan,
-        "distribution_tv": 0.0, "feature_centroid_drift": 0.0,
+        "dataset": spec.name, "batch": -1, "method": args.method, "seed": cfg.seed,
+        "test_accuracy": initial_acc, "pseudo_precision": np.nan, "pseudo_coverage": np.nan,
+        "agreement": np.nan, "distribution_tv": 0.0, "feature_centroid_drift": 0.0,
         "parameter_change": 0.0, "training_loss": np.nan,
-        "buffer_size": 0, "buffer_replaced": 0
+        "buffer_size": 0, "buffer_replaced": 0, "batch_seconds": 0.0,
     }]
     previous = snapshot(model)
 
     for batch in stream.batches():
-        if method == "naive":
-            model.eval()
-            with torch.no_grad():
-                x = batch.images.to(device)
-                probs = torch.softmax(model(x), dim=1)
-                conf, pred = probs.max(1)
-                mask = conf >= cfg.confidence_threshold
-                accepted_x, accepted_y = x[mask], pred[mask]
-                coverage = float(mask.float().mean())
-                mask_cpu = mask.cpu()
-                hidden_labels_cpu = batch.hidden_labels.cpu()
-                precision = float((pred[mask].cpu() == hidden_labels_cpu[mask_cpu]).float().mean()) if mask.any() else np.nan
-                agreement = np.nan
-        else:
-            pl = labeler.generate(batch.images, batch.hidden_labels)
-            accepted_x, accepted_y = pl.accepted_images, pl.pseudo_labels
-            coverage, precision, agreement = pl.coverage, pl.precision, pl.classifier_centroid_agreement
+        batch_start = time.perf_counter()
+        accepted_x = accepted_y = None
+        precision = coverage = agreement = float("nan")
+
+        if args.method != "offline":
+            if uses_centroid:
+                pl = labeler.generate(batch.images, batch.hidden_labels)
+                accepted_x, accepted_y = pl.accepted_images, pl.pseudo_labels
+                coverage, precision, agreement = pl.coverage, pl.precision, pl.classifier_centroid_agreement
+            else:
+                accepted_x, accepted_y, coverage, precision = confidence_pseudo_labels(
+                    model, batch.images, batch.hidden_labels, device, cfg.confidence_threshold
+                )
 
         replaced = 0
         train_x, train_y = accepted_x, accepted_y
-
-        if replay is not None and accepted_x.numel() > 0:
+        if replay is not None and accepted_x is not None and accepted_x.numel() > 0:
             stats = replay.add_batch(accepted_x, accepted_y)
             replaced = stats.replaced
-            old = replay.sample(args.replay_samples, device)
+            old = replay.sample(cfg.replay_samples, device)
             if old is not None:
                 rx, ry = old
-                train_x = torch.cat([accepted_x, rx], dim=0)
-                train_y = torch.cat([accepted_y, ry], dim=0)
+                train_x = torch.cat([accepted_x, rx], 0)
+                train_y = torch.cat([accepted_y, ry], 0)
 
-        # Train model on streaming batch + replay samples
-        train_loader = make_loader(train_x, train_y, cfg.train_batch_size)
-        loss = train_epochs(model, train_loader, optimizer, device, cfg.online_epochs, ewc) if train_loader else np.nan
+        loader = make_loader(train_x, train_y, cfg.train_batch_size)
+        loss = float("nan")
+        if args.method != "offline" and loader is not None:
+            loss = train_epochs(model, loader, optimizer, device, cfg.online_epochs, ewc)
 
-        # Feature-centroid drift calculation
         with torch.no_grad():
-            feats = torch.nn.functional.normalize(model.forward_features(batch.images.to(device)), dim=1)
+            features = torch.nn.functional.normalize(model.forward_features(batch.images.to(device)), dim=1)
             drifts = []
-            for c in range(10):
-                m = batch.hidden_labels.to(device) == c
+            hidden = batch.hidden_labels.to(device)
+            for c in range(spec.num_classes):
+                m = hidden == c
                 if m.any():
-                    current = torch.nn.functional.normalize(feats[m].mean(0, keepdim=True), dim=1).squeeze(0)
-                    drifts.append(float(torch.norm(current - reference_centroids[c], p=2)))
-            centroid_drift = float(np.mean(drifts)) if drifts else np.nan
+                    current = torch.nn.functional.normalize(features[m].mean(0, keepdim=True), dim=1).squeeze(0)
+                    drifts.append(float(torch.norm(current - reference_centroids[c], p=2).cpu()))
+            centroid_drift = float(np.mean(drifts)) if drifts else float("nan")
 
-        # Optional online EWC consolidation refresh from replay buffer
-        if ewc and replay and args.online_consolidate_every > 0 and (batch.batch_id + 1) % args.online_consolidate_every == 0:
+        # Proposed method refreshes Fisher online from trusted replay memory.
+        if args.method == "proposed" and ewc is not None and replay is not None and \
+                cfg.online_consolidate_every > 0 and (batch.batch_id + 1) % cfg.online_consolidate_every == 0:
             sample = replay.sample(min(cfg.fisher_samples, len(replay)), device)
             if sample is not None:
                 fx, fy = sample
@@ -204,69 +197,59 @@ def run_single_experiment(method: str, seed: int, args) -> pd.DataFrame:
 
         change = parameter_change(previous, model)
         previous = snapshot(model)
-        test_acc = accuracy(model, test_loader, device)
-        class_hist.append(class_accuracy(model, test_loader, device))
+        current_acc = accuracy(model, test_loader, device)
+        class_hist.append(class_accuracy(model, test_loader, device, spec.num_classes))
+        task_hist.append(task_accuracy_vector(model, task_loaders, device))
         dist_row = distribution.iloc[batch.batch_id]
-        
         rows.append({
-            "batch": batch.batch_id, "method": method, "seed": cfg.seed,
-            "test_accuracy": test_acc, "pseudo_precision": precision,
+            "dataset": spec.name, "batch": batch.batch_id, "method": args.method, "seed": cfg.seed,
+            "test_accuracy": current_acc, "pseudo_precision": precision,
             "pseudo_coverage": coverage, "agreement": agreement,
             "distribution_tv": float(dist_row.total_variation_from_previous),
-            "feature_centroid_drift": centroid_drift,
-            "parameter_change": change, "training_loss": loss,
-            "buffer_size": len(replay) if replay else 0,
-            "buffer_replaced": replaced
+            "feature_centroid_drift": centroid_drift, "parameter_change": change,
+            "training_loss": loss, "buffer_size": len(replay) if replay else 0,
+            "buffer_replaced": replaced, "batch_seconds": time.perf_counter() - batch_start,
         })
 
+    total_seconds = time.perf_counter() - start_time
     df = pd.DataFrame(rows)
-    stem = f"{method}_seed{cfg.seed}_lam{cfg.ewc_lambda:g}_thr{cfg.confidence_threshold:g}"
-    df.to_csv(out / f"metrics_{stem}.csv", index=False)
-    
-    class_df = pd.DataFrame(class_hist, columns=[f"class_{c}_accuracy" for c in range(10)])
+    stem = "%s_%s_seed%d_lam%g_thr%g" % (spec.name, args.method, cfg.seed, cfg.ewc_lambda, cfg.confidence_threshold)
+    df.to_csv(output / ("metrics_%s.csv" % stem), index=False)
+
+    class_df = pd.DataFrame(class_hist, columns=["class_%d_accuracy" % c for c in range(spec.num_classes)])
     class_df.insert(0, "batch", [-1] + list(range(cfg.stream_batches)))
-    class_df.to_csv(out / f"class_accuracy_{stem}.csv", index=False)
+    class_df.to_csv(output / ("class_accuracy_%s.csv" % stem), index=False)
+
+    task_df = pd.DataFrame(task_hist, columns=["task_%d_accuracy" % i for i in range(5)])
+    task_df.insert(0, "batch", [-1] + list(range(cfg.stream_batches)))
+    task_df.to_csv(output / ("task_accuracy_%s.csv" % stem), index=False)
 
     summary = {
-        "method": method,
+        "dataset": spec.name,
+        "method": args.method,
         "seed": cfg.seed,
         "initial_accuracy": float(df.iloc[0].test_accuracy),
         "final_accuracy": float(df.iloc[-1].test_accuracy),
         "mean_stream_accuracy": float(df[df.batch >= 0].test_accuracy.mean()),
         "classwise_forgetting": forgetting_from_history(class_hist),
-        "mean_pseudo_precision": float(df.pseudo_precision.mean(skipna=True)),
-        "mean_pseudo_coverage": float(df.pseudo_coverage.mean(skipna=True)),
+        "average_incremental_accuracy": average_incremental_accuracy(task_hist),
+        "backward_transfer_proxy": backward_transfer_proxy(task_hist),
+        "mean_pseudo_precision": float(df.pseudo_precision.mean(skipna=True)) if df.pseudo_precision.notna().any() else float("nan"),
+        "mean_pseudo_coverage": float(df.pseudo_coverage.mean(skipna=True)) if df.pseudo_coverage.notna().any() else float("nan"),
         "mean_distribution_tv": float(df.distribution_tv.mean()),
         "mean_feature_centroid_drift": float(df.feature_centroid_drift.mean(skipna=True)),
         "mean_parameter_change": float(df.parameter_change.mean()),
+        "mean_batch_seconds": float(df[df.batch >= 0].batch_seconds.mean()),
+        "total_seconds": float(total_seconds),
         "final_buffer_size": int(df.iloc[-1].buffer_size),
+        "ewc_lambda": cfg.ewc_lambda,
+        "threshold": cfg.confidence_threshold,
     }
-    if ewc:
+    if ewc is not None:
         summary.update(ewc.fisher_summary())
-        
-    with open(out / f"summary_{stem}.json", "w") as f:
+    with open(output / ("summary_%s.json" % stem), "w") as f:
         json.dump(summary, f, indent=2)
-        
-    print(f"\n--- Completed method={method}, seed={cfg.seed} ---")
     print(json.dumps(summary, indent=2))
-    return df
-
-
-def main():
-    args = parse_args()
-    out = Path(args.output_dir)
-    out.mkdir(parents=True, exist_ok=True)
-    
-    all_dfs = []
-    for method in args.methods:
-        for seed in args.seeds:
-            df = run_single_experiment(method, seed, args)
-            all_dfs.append(df)
-
-    if all_dfs:
-        combined_df = pd.concat(all_dfs, ignore_index=True)
-        combined_df.to_csv(out / "all_runs.csv", index=False)
-        print(f"\nSaved concatenated results to {out / 'all_runs.csv'}")
 
 
 if __name__ == "__main__":
