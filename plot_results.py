@@ -1,28 +1,57 @@
+from __future__ import annotations
+import argparse
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 
+ORDER = ["offline", "naive", "replay", "ewc", "proposed"]
 
-def line_plot(df, y, ylabel, title, path):
-    agg=df.groupby(["method","batch"],as_index=False).agg(mean=(y,"mean"),std=(y,"std"))
-    plt.figure(figsize=(9,5))
-    for method,g in agg.groupby("method"):
-        plt.plot(g.batch,g["mean"],label=method)
-        sd=g["std"].fillna(0)
-        plt.fill_between(g.batch,g["mean"]-sd,g["mean"]+sd,alpha=.15)
-    plt.xlabel("Stream batch"); plt.ylabel(ylabel); plt.title(title); plt.legend(); plt.tight_layout(); plt.savefig(path,dpi=200); plt.close()
+def load_metrics(root: Path):
+    frames = []
+    for path in root.glob("metrics_*.csv"):
+        frames.append(pd.read_csv(path))
+    if not frames:
+        raise SystemExit("No metrics_*.csv files found in %s" % root)
+    return pd.concat(frames, ignore_index=True)
+
+
+def line_plot(df, dataset, metric, ylabel, path):
+    subset = df[(df.dataset == dataset) & (df.batch >= 0)]
+    stats = subset.groupby(["method", "batch"])[metric].agg(["mean", "std"]).reset_index()
+    fig, ax = plt.subplots(figsize=(9, 5))
+    for method in ORDER:
+        m = stats[stats.method == method]
+        if m.empty:
+            continue
+        ax.plot(m.batch, m["mean"], label=method)
+        if m["std"].notna().any():
+            ax.fill_between(m.batch, m["mean"] - m["std"].fillna(0), m["mean"] + m["std"].fillna(0), alpha=0.15)
+    ax.set_xlabel("Stream batch")
+    ax.set_ylabel(ylabel)
+    ax.set_title("%s: %s over the stream" % (dataset.upper(), ylabel))
+    ax.legend()
+    ax.grid(alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(path, dpi=180)
+    plt.close(fig)
 
 
 def main():
-    p=Path("results/repeated"); df=pd.read_csv(p/"all_runs.csv"); stream=df[df.batch>=0]
-    line_plot(stream,"test_accuracy","Test accuracy","Accuracy across the stream (mean ± SD)",p/"accuracy_mean_std.png")
-    line_plot(stream,"pseudo_precision","Pseudo-label precision","Pseudo-label quality",p/"pseudo_precision.png")
-    line_plot(stream,"pseudo_coverage","Pseudo-label coverage","Accepted fraction of unlabelled samples",p/"pseudo_coverage.png")
-    line_plot(stream,"parameter_change","Relative parameter change","Model change after each batch",p/"parameter_change.png")
-    line_plot(stream,"feature_centroid_drift","Feature-centroid drift","Representation drift from trusted semantics",p/"feature_centroid_drift.png")
-    dist=pd.read_csv(next(p.glob("distribution_seed*.csv")))
-    plt.figure(figsize=(9,4)); plt.plot(dist.batch,dist.total_variation_from_previous,marker="o")
-    plt.xlabel("Stream batch"); plt.ylabel("Total variation distance"); plt.title("Class-distribution change"); plt.tight_layout(); plt.savefig(p/"distribution_change.png",dpi=200); plt.close()
-    print("Saved plots in",p)
+    p = argparse.ArgumentParser()
+    p.add_argument("--results-dir", default="results/extended")
+    args = p.parse_args()
+    root = Path(args.results_dir)
+    figdir = root / "figures"
+    figdir.mkdir(parents=True, exist_ok=True)
+    df = load_metrics(root)
+    for dataset in sorted(df.dataset.unique()):
+        line_plot(df, dataset, "test_accuracy", "Test accuracy", figdir / ("%s_accuracy.png" % dataset))
+        line_plot(df, dataset, "pseudo_precision", "Pseudo-label precision", figdir / ("%s_pseudo_precision.png" % dataset))
+        line_plot(df, dataset, "pseudo_coverage", "Pseudo-label coverage", figdir / ("%s_pseudo_coverage.png" % dataset))
+        line_plot(df, dataset, "parameter_change", "Relative parameter change", figdir / ("%s_parameter_change.png" % dataset))
+        line_plot(df, dataset, "feature_centroid_drift", "Feature-centroid drift", figdir / ("%s_feature_drift.png" % dataset))
+    print("Figures saved to", figdir)
 
-if __name__=="__main__": main()
+
+if __name__ == "__main__":
+    main()
