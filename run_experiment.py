@@ -18,7 +18,7 @@ from torchvision import datasets, transforms
 
 
 def set_global_seed(seed: int = 42) -> None:
-
+    """Sets global random seeds for exact experiment reproducibility."""
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
@@ -31,7 +31,7 @@ def set_global_seed(seed: int = 42) -> None:
 
 
 def choose_device(requested_device: str = "auto") -> torch.device:
-    
+    """Selects the best available compute device (CUDA, Apple Silicon MPS, or CPU)."""
     if requested_device is None or requested_device == "auto":
         if torch.cuda.is_available():
             return torch.device("cuda")
@@ -43,7 +43,7 @@ def choose_device(requested_device: str = "auto") -> torch.device:
 
 
 class SafeAdaptiveAvgPool2d(nn.Module):
-    
+    """MPS-safe adaptive average pooling layer to prevent hardware backend issues."""
     def __init__(self, output_size):
         super().__init__()
         if isinstance(output_size, int):
@@ -62,6 +62,7 @@ class SafeAdaptiveAvgPool2d(nn.Module):
 
 
 class VisionCNN(nn.Module):
+    """Feature-extracting CNN architecture for image classification."""
     def __init__(self, in_channels: int = 1, num_classes: int = 10, feature_dim: int = 128):
         super().__init__()
         self.features = nn.Sequential(
@@ -218,7 +219,7 @@ class ReplayStats:
 
 
 class ReservoirReplayBuffer:
-    
+    """Reservoir sampling memory buffer for rehearsal-based continual learning."""
     def __init__(self, capacity: int, seed: int = 0):
         if capacity <= 0:
             raise ValueError("capacity must be positive")
@@ -351,7 +352,7 @@ class CentroidRefinedPseudoLabeler:
 
 
 class OnlineEWC:
-    
+    """Calculates Fisher Information to penalize important parameter movements."""
     def __init__(self, model: nn.Module, device: torch.device, ewc_lambda: float = 100.0, gamma: float = 0.9):
         self.model = model
         self.device = device
@@ -544,6 +545,7 @@ def confidence_pseudo_labels(model: nn.Module, images: torch.Tensor, hidden_labe
 
 @dataclass
 class Config:
+    dataset: str = "mnist"
     seed: int = 0
     data_root: str = "./data"
     output_dir: str = "./results"
@@ -570,6 +572,7 @@ class Config:
 
 def parse_args():
     p = argparse.ArgumentParser(description="Continual Semi-Supervised Learning Framework")
+    p.add_argument("--dataset", default="mnist", choices=["mnist"], help="Dataset to run experiments on (default: mnist)")
     p.add_argument("--method", default="proposed", choices=["naive", "ewc", "replay", "centroid", "proposed", "offline"],
                    help="Ablation method selection (default: proposed)")
     p.add_argument("--seed", type=int, default=0, help="Random seed for reproducibility")
@@ -586,9 +589,10 @@ def main():
     args = parse_args()
     set_global_seed(args.seed)
     device = choose_device(args.device)
-    print(f"Executing experiment: method={args.method}, seed={args.seed}, device={device}")
+    print(f"Executing experiment: dataset={args.dataset}, method={args.method}, seed={args.seed}, device={device}")
 
     cfg = Config(
+        dataset=args.dataset,
         seed=args.seed,
         data_root=args.data_root,
         output_dir=args.output_dir,
@@ -725,7 +729,7 @@ def main():
         dist_row = distribution.iloc[batch.batch_id]
 
         rows.append({
-            "dataset": "MNIST", "batch": batch.batch_id, "method": args.method, "seed": cfg.seed,
+            "dataset": cfg.dataset, "batch": batch.batch_id, "method": args.method, "seed": cfg.seed,
             "test_accuracy": current_acc, "pseudo_precision": precision,
             "pseudo_coverage": coverage, "agreement": agreement,
             "accepted_count": accepted_count, "rejected_count": rejected_count,
@@ -742,7 +746,7 @@ def main():
 
     total_seconds = time.perf_counter() - start_time
     df = pd.DataFrame(rows)
-    stem = f"MNIST_{args.method}_seed{cfg.seed}_lam{cfg.ewc_lambda}_thr{cfg.confidence_threshold}"
+    stem = f"{cfg.dataset}_{args.method}_seed{cfg.seed}_lam{cfg.ewc_lambda}_thr{cfg.confidence_threshold}"
     df.to_csv(output / f"metrics_{stem}.csv", index=False)
 
     class_df = pd.DataFrame(class_hist, columns=[f"class_{c}_accuracy" for c in range(num_classes)])
@@ -754,7 +758,7 @@ def main():
     task_df.to_csv(output / f"task_accuracy_{stem}.csv", index=False)
 
     summary = {
-        "dataset": "MNIST",
+        "dataset": cfg.dataset,
         "method": args.method,
         "seed": cfg.seed,
         "initial_accuracy": float(df.iloc[0].test_accuracy),
