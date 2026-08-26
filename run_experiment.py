@@ -138,9 +138,11 @@ def main():
     rows = [{
         "dataset": spec.name, "batch": -1, "method": args.method, "seed": cfg.seed,
         "test_accuracy": initial_acc, "pseudo_precision": np.nan, "pseudo_coverage": np.nan,
-        "agreement": np.nan, "distribution_tv": 0.0, "feature_centroid_drift": 0.0,
-        "parameter_change": 0.0, "training_loss": np.nan,
-        "buffer_size": 0, "buffer_replaced": 0, "batch_seconds": 0.0,
+        "agreement": np.nan, "accepted_count": 0, "rejected_count": 0,
+        "mean_accepted_confidence": np.nan, "distribution_tv": 0.0,
+        "feature_centroid_drift": 0.0, "parameter_change": 0.0,
+        "training_loss": np.nan, "buffer_size": 0, "buffer_replaced": 0,
+        "buffer_total_seen": 0, "batch_seconds": 0.0,
     }]
     previous = snapshot(model)
 
@@ -148,16 +150,22 @@ def main():
         batch_start = time.perf_counter()
         accepted_x = accepted_y = None
         precision = coverage = agreement = float("nan")
+        accepted_count = rejected_count = 0
+        mean_accepted_confidence = float("nan")
 
         if args.method != "offline":
             if uses_centroid:
                 pl = labeler.generate(batch.images, batch.hidden_labels)
                 accepted_x, accepted_y = pl.accepted_images, pl.pseudo_labels
                 coverage, precision, agreement = pl.coverage, pl.precision, pl.classifier_centroid_agreement
+                accepted_count, rejected_count = pl.accepted_count, pl.rejected_count
+                mean_accepted_confidence = pl.mean_accepted_confidence
             else:
                 accepted_x, accepted_y, coverage, precision = confidence_pseudo_labels(
                     model, batch.images, batch.hidden_labels, device, cfg.confidence_threshold
                 )
+                accepted_count = int(accepted_y.numel()) if accepted_y is not None else 0
+                rejected_count = int(len(batch.images) - accepted_count)
 
         replaced = 0
         train_x, train_y = accepted_x, accepted_y
@@ -205,10 +213,14 @@ def main():
             "dataset": spec.name, "batch": batch.batch_id, "method": args.method, "seed": cfg.seed,
             "test_accuracy": current_acc, "pseudo_precision": precision,
             "pseudo_coverage": coverage, "agreement": agreement,
+            "accepted_count": accepted_count, "rejected_count": rejected_count,
+            "mean_accepted_confidence": mean_accepted_confidence,
             "distribution_tv": float(dist_row.total_variation_from_previous),
             "feature_centroid_drift": centroid_drift, "parameter_change": change,
             "training_loss": loss, "buffer_size": len(replay) if replay else 0,
-            "buffer_replaced": replaced, "batch_seconds": time.perf_counter() - batch_start,
+            "buffer_replaced": replaced,
+            "buffer_total_seen": replay.seen if replay else 0,
+            "batch_seconds": time.perf_counter() - batch_start,
         })
 
     total_seconds = time.perf_counter() - start_time
