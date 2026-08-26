@@ -2,6 +2,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 
+
 @torch.no_grad()
 def accuracy(model, loader, device) -> float:
     model.eval(); correct = 0; total = 0
