@@ -5,7 +5,8 @@ import torch.nn.functional as F
 
 
 class OnlineEWC:
-    
+    """Diagonal empirical-Fisher EWC with optional online accumulation."""
+
     def __init__(self, model, device, strength: float = 50.0, gamma: float = 0.95):
         self.model = model
         self.device = device
