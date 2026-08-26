@@ -7,6 +7,7 @@ import torch
 from torch.utils.data import DataLoader, Subset
 from torchvision import datasets, transforms
 
+
 @dataclass
 class DatasetSpec:
     name: str
@@ -72,7 +73,12 @@ def _targets(dataset) -> np.ndarray:
 
 
 class ControlledVisionStream:
-    
+    """Controlled class-prior stream shared by MNIST, CIFAR-10 and SVHN.
+
+    The dataset remains a static benchmark, but we impose a deterministic stream.
+    Each batch has a known dominant class pair, making distribution change measurable.
+    """
+
     def __init__(self, dataset: str, data_root: str, seed: int, initial_per_class: int,
                  stream_batches: int, stream_batch_size: int, dominant_fraction: float):
         if stream_batches > len(PAIR_SCHEDULE):
