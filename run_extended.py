@@ -4,7 +4,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--datasets", nargs="+", default=["mnist", "cifar10", "svhn"])
@@ -24,7 +23,6 @@ def main():
                     cmd += ["--stream-batches", "5", "--initial-epochs", "1", "--fisher-samples", "100"]
                 print("\nRUN:", " ".join(cmd), flush=True)
                 subprocess.run(cmd, check=True)
-
 
 if __name__ == "__main__":
     main()
