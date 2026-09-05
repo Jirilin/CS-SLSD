@@ -1,111 +1,70 @@
-# CS-SLSD — Continual Semi-Supervised Learning from Streaming Data
+# Continual Semi-Supervised Learning from Streaming Data
 
-Research prototype for controlled continual semi-supervised image-classification experiments on **MNIST, CIFAR-10 and SVHN**.
+This repository contains the final-week implementation package for the MSc dissertation project.
 
-## Research question
+## Core idea
+The project tests whether an image classifier can keep learning from a changing stream of mostly unlabelled data without forgetting earlier knowledge.
 
-Can a classifier continue learning from a changing, mostly unlabelled image stream while maintaining pseudo-label reliability and reducing catastrophic forgetting?
+## Implemented methods
+- Offline baseline
+- Naive online pseudo-labelling
+- Replay baseline
+- EWC baseline
+- Proposed prototype: centroid-refined pseudo-labelling + reservoir replay + online EWC
 
-## Compared methods
+## Datasets
+- MNIST
+- CIFAR-10
+- SVHN
 
-- `offline`: initial trusted labels only; no stream adaptation.
-- `naive`: confidence pseudo-labels; current batch only.
-- `replay`: confidence pseudo-labels + reservoir replay.
-- `ewc`: confidence pseudo-labels + Fisher-based EWC.
-- `proposed`: centroid-refined pseudo-labels + reservoir replay + online EWC.
+The datasets are downloaded automatically by Torchvision into `./data`. Do not submit the `data/` folder.
 
-The current `proposed` implementation is a practical prototype and **is not claimed to be an exact implementation of SDSL's adaptive flat-region/minimax replay**.
-
-## Core pipeline
-
-1. Build a trusted initial labelled set.
-2. Convert the remaining benchmark data into controlled sequential batches.
-3. Train the base CNN.
-4. Generate pseudo-labels from incoming unlabelled samples.
-5. Apply replay and/or EWC depending on the selected method.
-6. Evaluate accuracy, forgetting, pseudo-label quality, drift, parameter change and runtime after each batch.
-7. Repeat with multiple seeds and aggregate mean ± standard deviation.
-
-## Install
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-```
-
-## Test
-
+## Quick validation
 ```bash
 python -m pytest tests -v
-```
-
-## Smoke-test the full pipeline
-
-```bash
 python run_experiment.py --dataset mnist --method proposed --seed 0 --smoke
 python run_experiment.py --dataset cifar10 --method proposed --seed 0 --smoke
 python run_experiment.py --dataset svhn --method proposed --seed 0 --smoke
 ```
 
-Smoke results are pipeline checks only and must not be used as dissertation evidence.
-
-## Multi-dataset experiments
-
-Quick validation:
-
+## Full final run
 ```bash
-python run_extended.py --quick
+python run_final_pipeline.py --full
 ```
 
-Full matrix (3 datasets × 5 methods × 5 seeds = 75 runs):
-
+If interrupted:
 ```bash
-python run_extended.py
+python run_final_pipeline.py --full --skip-tests
 ```
 
-Then aggregate and analyse:
+`run_extended.py` supports `--resume`, so completed summaries are skipped.
 
+## Result processing
 ```bash
 python aggregate_results.py --results-dir results/extended
 python plot_results.py --results-dir results/extended
 python run_analysis.py --results-dir results/extended
 python create_final_figures.py --results-dir results/extended
-python generate_pipeline_diagram.py
-```
-
-## Ablations
-
-```bash
-python run_ablations.py
-```
-
-## Submission-readiness check
-
-```bash
 python validate_submission.py --results-dir results/extended
 ```
 
-This repository check does not replace the official university submission checklist.
-
 ## Important outputs
+- `results/extended/dissertation_comparison_table.csv`
+- `results/extended/comparison_mean_std.csv`
+- `results/extended/change_correlation_summary.csv`
+- `results/extended/figures/`
+- `results/final_figures/`
+- `results/extended/environment_reproducibility.json`
+- `results/extended/submission_manifest.csv`
 
-- Per-run metrics: `results/extended/metrics_*.csv`
-- Per-class accuracy: `results/extended/class_accuracy_*.csv`
-- Task-group accuracy: `results/extended/task_accuracy_*.csv`
-- Run summaries: `results/extended/summary_*.json`
-- Mean ± SD: `results/extended/comparison_mean_std.csv`
-- Final figures: `results/final_figures/`
-- Final table: `results/final_tables/final_comparison_table.csv`
-- Readiness report: `results/submission_readiness.csv`
+## Report and presentation materials
+- `report_drafts/FINAL_REPORT_MASTER_DRAFT.md`
+- `docs/FINAL_PRESENTATION_SCRIPT.md`
+- `docs/VIVA_PREPARATION.md`
+- `docs/DEMO_RUNBOOK.md`
+- `docs/FINAL_SUBMISSION_CHECKLIST.md`
+- `docs/SUPERVISOR_FINAL_REVIEW.md`
+- `docs/REFERENCE_AUDIT_HARVARD.md`
 
-## Finalisation documents
-
-- `docs/WEEKLY_UPDATE_AUG26.md`
-- `docs/FINAL_PRESENTATION_STRUCTURE.md`
-- `docs/PAPERWORK_ETHICS_CHECKLIST.md`
-- `docs/FIRST_DRAFT_REVIEW_CHECKLIST.md`
-- `report_drafts/REVISED_ANALYSIS_DISCUSSION.md`
-- `report_drafts/CONCLUSION_FUTURE_WORK.md`
-- `report_drafts/FRONT_MATTER_TEMPLATE.md`
+## Important limitation
+The implemented proposed prototype is inspired by SDSL and operationalises robust pseudo-labelling with centroid references. Its anti-forgetting mechanism is reservoir replay + online EWC. It is not a full reproduction of the original SDSL minimax flat-region replay solver. State this clearly in the report unless the minimax component is implemented and verified.
