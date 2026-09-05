@@ -2,6 +2,7 @@ from __future__ import annotations
 import torch
 from torch import nn
 
+
 class VisionCNN(nn.Module):
     
     def __init__(self, in_channels: int, num_classes: int = 10, feature_dim: int = 128):
