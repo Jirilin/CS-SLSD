@@ -9,8 +9,7 @@ import torch.nn.functional as F
 
 @dataclass
 class PseudoLabelResult:
-    """Diagnostics and accepted samples produced by pseudo-labelling."""
-
+    
     accepted_images: torch.Tensor
     pseudo_labels: torch.Tensor
     coverage: float
@@ -22,15 +21,7 @@ class PseudoLabelResult:
 
 
 class CentroidRefinedPseudoLabeler:
-    """Generate conservative pseudo-labels using classifier + semantic centroids.
-
-    Reference centroids are fitted once from the trusted labelled set. During
-    streaming, a sample is accepted only when the classifier and nearest
-    reference centroid agree and the combined confidence exceeds ``threshold``.
-    This prevents low-confidence or semantically inconsistent samples from
-    entering replay memory and later reinforcing their own errors.
-    """
-
+    
     def __init__(
         self,
         model,
@@ -57,7 +48,7 @@ class CentroidRefinedPseudoLabeler:
 
     @torch.no_grad()
     def fit_reference_centroids(self, loader) -> None:
-        """Fit one L2-normalised feature centroid per class from trusted labels."""
+        
         self.model.eval()
         sums = None
         counts = torch.zeros(self.num_classes, device=self.device)
@@ -83,7 +74,7 @@ class CentroidRefinedPseudoLabeler:
         if sums is None or (counts == 0).any():
             missing = torch.where(counts == 0)[0].tolist()
             raise RuntimeError(
-                "Reference centroid fitting requires trusted samples for every "
+                
                 f"class; missing classes: {missing}"
             )
 
@@ -95,11 +86,7 @@ class CentroidRefinedPseudoLabeler:
         images: torch.Tensor,
         hidden_labels: Optional[torch.Tensor] = None,
     ) -> PseudoLabelResult:
-        """Create pseudo-labels and report acceptance/quality diagnostics.
-
-        ``hidden_labels`` are used only to evaluate pseudo-label precision in the
-        simulated benchmark. They are never used to choose or train pseudo-labels.
-        """
+        
         if self.centroids is None:
             raise RuntimeError("Call fit_reference_centroids() before generate().")
 
