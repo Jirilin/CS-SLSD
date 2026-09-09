@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 @dataclass
 class PseudoLabelResult:
-   
+    
     accepted_images: torch.Tensor
     pseudo_labels: torch.Tensor
     coverage: float
@@ -22,6 +22,7 @@ class PseudoLabelResult:
 
 class CentroidRefinedPseudoLabeler:
     
+
     def __init__(
         self,
         model,
@@ -48,7 +49,7 @@ class CentroidRefinedPseudoLabeler:
 
     @torch.no_grad()
     def fit_reference_centroids(self, loader) -> None:
-        """Fit one L2-normalised feature centroid per class from trusted labels."""
+        
         self.model.eval()
         sums = None
         counts = torch.zeros(self.num_classes, device=self.device)
@@ -74,7 +75,7 @@ class CentroidRefinedPseudoLabeler:
         if sums is None or (counts == 0).any():
             missing = torch.where(counts == 0)[0].tolist()
             raise RuntimeError(
-                "Reference centroid fitting requires trusted samples for every "
+                
                 f"class; missing classes: {missing}"
             )
 
@@ -93,7 +94,10 @@ class CentroidRefinedPseudoLabeler:
         self.model.eval()
         x = images.to(self.device)
 
-                raw_features = self.model.forward_features(x)
+        # One feature extraction pass is enough for both classifier and centroid
+        # decisions. This is cleaner and faster than forwarding through the CNN
+        # twice.
+        raw_features = self.model.forward_features(x)
         logits = self.model.classifier(raw_features)
         classifier_probs = torch.softmax(logits, dim=1)
         _, classifier_pred = classifier_probs.max(dim=1)
