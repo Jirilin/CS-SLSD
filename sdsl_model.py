@@ -20,11 +20,11 @@ class SDSLVisionNet(nn.Module):
             nn.Conv2d(64, 128, 3, padding=1, bias=False),
             nn.GroupNorm(8, 128),
             nn.GELU(),
-            nn.AdaptiveAvgPool2d((2, 2)),
+            nn.AdaptiveAvgPool2d((1, 1)),
         )
         self.projector = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(128 * 2 * 2, feature_dim),
+            nn.Linear(128, feature_dim),
             nn.GELU(),
             nn.Dropout(0.10),
         )
