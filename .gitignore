@@ -42,3 +42,7 @@ token.json
 *.pt
 *.onnx
 *.h5
+
+# Ignore dataset folders and matrix files
+data/
+*.mat

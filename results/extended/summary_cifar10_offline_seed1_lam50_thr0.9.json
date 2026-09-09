@@ -1,0 +1,21 @@
+{
+  "dataset": "cifar10",
+  "method": "offline",
+  "seed": 1,
+  "initial_accuracy": 0.4042,
+  "final_accuracy": 0.4042,
+  "mean_stream_accuracy": 0.40420000000000006,
+  "classwise_forgetting": 0.0,
+  "average_incremental_accuracy": 0.4042,
+  "backward_transfer_proxy": 0.0,
+  "mean_pseudo_precision": NaN,
+  "mean_pseudo_coverage": NaN,
+  "mean_distribution_tv": 0.41629464285714285,
+  "mean_feature_centroid_drift": 0.1358397608179422,
+  "mean_parameter_change": 0.0,
+  "mean_batch_seconds": 2.76678827495,
+  "total_seconds": 60.058819875,
+  "final_buffer_size": 0,
+  "ewc_lambda": 50.0,
+  "threshold": 0.9
+}

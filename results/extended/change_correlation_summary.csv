@@ -1,0 +1,4 @@
+dataset,method,seed,seed,distribution_vs_accuracy,distribution_vs_accuracy,distribution_vs_precision,distribution_vs_precision,feature_drift_vs_accuracy,feature_drift_vs_accuracy,parameter_change_vs_accuracy,parameter_change_vs_accuracy
+,,mean,std,mean,std,mean,std,mean,std,mean,std
+cifar10,offline,2.0,1.5811388300841898,,,,,,,,
+cifar10,proposed,2.0,1.5811388300841898,,,,,,,,

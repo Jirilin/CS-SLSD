@@ -1,0 +1,23 @@
+{
+  "dataset": "cifar10",
+  "method": "proposed",
+  "seed": 2,
+  "initial_accuracy": 0.4228,
+  "final_accuracy": 0.4228,
+  "mean_stream_accuracy": 0.42279999999999995,
+  "classwise_forgetting": 0.0,
+  "average_incremental_accuracy": 0.4228,
+  "backward_transfer_proxy": 0.0,
+  "mean_pseudo_precision": NaN,
+  "mean_pseudo_coverage": 0.0,
+  "mean_distribution_tv": 0.41629464285714285,
+  "mean_feature_centroid_drift": 0.147992765424507,
+  "mean_parameter_change": 0.0,
+  "mean_batch_seconds": 2.752531693700001,
+  "total_seconds": 63.751015625,
+  "final_buffer_size": 0,
+  "ewc_lambda": 50.0,
+  "threshold": 0.9,
+  "fisher_mean": 0.004634168464690447,
+  "fisher_max": 7.568655014038086
+}
