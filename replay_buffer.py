@@ -7,9 +7,9 @@ from typing import Optional
 
 import torch
 
-
 @dataclass
 class ReplayStats:
+    
     added: int
     replaced: int
     current_size: int
@@ -17,7 +17,7 @@ class ReplayStats:
 
 
 class ReservoirReplayBuffer:
-
+    
     def __init__(self, capacity: int, seed: int = 0) -> None:
         if capacity <= 0:
             raise ValueError("capacity must be positive")
@@ -52,7 +52,7 @@ class ReservoirReplayBuffer:
                 added += 1
                 continue
 
-            # Algorithm R: replace an existing element with probability capacity / total_seen. Otherwise the new sample is discarded.
+            
             replacement_index = self.rng.randrange(self.seen)
             if replacement_index < self.capacity:
                 self.images[replacement_index] = image.clone()
@@ -71,8 +71,7 @@ class ReservoirReplayBuffer:
         n: int,
         device: torch.device,
     ) -> Optional[tuple[torch.Tensor, torch.Tensor]]:
-        
-        if n <= 0:
+                if n <= 0:
             return None
         if not self.images:
             return None
@@ -88,4 +87,4 @@ class ReservoirReplayBuffer:
         return images, labels
 
     def class_histogram(self) -> dict[int, int]:
-        return dict(sorted(Counter(self.labels).items()))
+                return dict(sorted(Counter(self.labels).items()))
