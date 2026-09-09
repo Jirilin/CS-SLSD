@@ -9,8 +9,7 @@ import torch.nn.functional as F
 
 @dataclass
 class PseudoLabelResult:
-    """Diagnostics and accepted samples produced by pseudo-labelling."""
-
+   
     accepted_images: torch.Tensor
     pseudo_labels: torch.Tensor
     coverage: float
@@ -22,15 +21,7 @@ class PseudoLabelResult:
 
 
 class CentroidRefinedPseudoLabeler:
-    """Generate conservative pseudo-labels using classifier + semantic centroids.
-
-    Reference centroids are fitted once from the trusted labelled set. During
-    streaming, a sample is accepted only when the classifier and nearest
-    reference centroid agree and the combined confidence exceeds ``threshold``.
-    This prevents low-confidence or semantically inconsistent samples from
-    entering replay memory and later reinforcing their own errors.
-    """
-
+    
     def __init__(
         self,
         model,
@@ -95,21 +86,14 @@ class CentroidRefinedPseudoLabeler:
         images: torch.Tensor,
         hidden_labels: Optional[torch.Tensor] = None,
     ) -> PseudoLabelResult:
-        """Create pseudo-labels and report acceptance/quality diagnostics.
-
-        ``hidden_labels`` are used only to evaluate pseudo-label precision in the
-        simulated benchmark. They are never used to choose or train pseudo-labels.
-        """
+        
         if self.centroids is None:
             raise RuntimeError("Call fit_reference_centroids() before generate().")
 
         self.model.eval()
         x = images.to(self.device)
 
-        # One feature extraction pass is enough for both classifier and centroid
-        # decisions. This is cleaner and faster than forwarding through the CNN
-        # twice.
-        raw_features = self.model.forward_features(x)
+                raw_features = self.model.forward_features(x)
         logits = self.model.classifier(raw_features)
         classifier_probs = torch.softmax(logits, dim=1)
         _, classifier_pred = classifier_probs.max(dim=1)
