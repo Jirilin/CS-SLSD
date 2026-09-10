@@ -10,7 +10,7 @@ class SDSLVisionNet(nn.Module):
         super().__init__()
         self.encoder = nn.Sequential(
             nn.Conv2d(in_channels, 32, 3, padding=1, bias=False),
-            nn.GroupNorm(4, 32),
+            nn.GroupNorm(4, 32), 
             nn.GELU(),
             nn.MaxPool2d(2),
             nn.Conv2d(32, 64, 3, padding=1, bias=False),
