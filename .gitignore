@@ -1,48 +1,52 @@
-# ==========================================
-# UNIVERSAL GITIGNORE FOR MAC & PYTHON
-# ==========================================
+# Python cache
 
-# Python Virtual Environments (The #1 cause of 10k+ changes)
-venv/
-.venv/
-env/
-ENV/
-env.bak/
-venv.bak/
-
-# Python Cache & Compiled Files
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
 
-# System & Tool Folders
+# Virtual environments
+
+.venv/
+venv/
+env/
+
+# Testing / tooling
+
+.pytest_cache/
+.coverage
+htmlcov/
+
+# macOS / editor files
+
 .DS_Store
-.AppleDouble
-.LSOverride
-.android/
-.matplotlib/
-.npm/
-.claude/
-_cacache/
-adbkey*
-fontlist*.json
+.vscode/
+.idea/
 
-# Security Keys & Credentials
-credentials.json
-token.json
-*.pem
-*.key
+# Downloaded datasets
 
-# Large Datasets & Model Weights
-*.rar
-*.zip
-*.tar.gz
-*.pth
-*.pt
-*.onnx
-*.h5
-
-# Ignore dataset folders and matrix files
 data/
-*.mat
+datasets/
+
+# Temporary results
+
+results/smoke/
+results/debug/
+results/tmp/
+
+# Training checkpoints
+
+*.pt
+*.pth
+*.ckpt
+
+# Logs
+
+*.log
+
+# Notebook temporary files
+
+.ipynb_checkpoints/
+
+# Temporary archives
+
+*.zip
