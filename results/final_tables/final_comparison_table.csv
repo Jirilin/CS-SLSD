@@ -1,3 +1,0 @@
-dataset,method,final_accuracy_mean,final_accuracy_std,classwise_forgetting_mean,classwise_forgetting_std,mean_pseudo_precision_mean,mean_pseudo_precision_std,mean_pseudo_coverage_mean,mean_pseudo_coverage_std,mean_batch_seconds_mean,mean_batch_seconds_std
-cifar10,offline,0.4113799999999999,0.0109891764932591,0.0,0.0,,0.0,,0.0,2.75621866916,0.0359573263208014
-cifar10,proposed,0.4113799999999999,0.0109891764932591,0.0,0.0,,0.0,0.0,0.0,2.7601548945999994,0.0374186762074604
