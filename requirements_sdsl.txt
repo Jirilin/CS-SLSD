@@ -4,3 +4,4 @@ numpy>=1.23
 pandas>=1.5
 matplotlib>=3.7
 pytest>=8.0
+scipy
