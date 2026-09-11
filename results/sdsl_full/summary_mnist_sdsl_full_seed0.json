@@ -17,8 +17,8 @@
   "mean_flat_width": 0.14734429131051346,
   "mean_projected_gradient_fraction": 0.7381413246742841,
   "mean_parameter_change": 0.011601410979977581,
-  "mean_batch_seconds": 4.588653218749999,
-  "total_seconds": 97.577508458,
+  "mean_batch_seconds": 4.620700837549999,
+  "total_seconds": 98.45968575,
   "final_subspace_rank": 8,
   "config": {
     "dataset": "mnist",
