@@ -1,0 +1,3 @@
+dataset,batch,method,seed,test_accuracy,pseudo_precision,pseudo_coverage,accepted_count,rejected_count,distribution_tv,feature_centroid_drift,parameter_change,training_loss,buffer_size,batch_seconds,evaluation_scope
+svhn,-1,offline,0,0.1466656422864167,,,0,0,0.0,,,,0,0.0,common_initial_model
+svhn,20,offline,0,0.39804855562384756,,,6120,0,,,,2.128319258739551,0,5.723454374999999,oracle_joint_all_stream_labels
