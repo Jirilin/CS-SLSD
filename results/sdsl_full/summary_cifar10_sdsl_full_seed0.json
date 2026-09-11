@@ -17,8 +17,8 @@
   "mean_flat_width": 0.11170936358671282,
   "mean_projected_gradient_fraction": 0.7429072643951574,
   "mean_parameter_change": 0.010833207616807807,
-  "mean_batch_seconds": 5.66864385835,
-  "total_seconds": 120.444422208,
+  "mean_batch_seconds": 5.6482041875,
+  "total_seconds": 119.941501458,
   "final_subspace_rank": 8,
   "config": {
     "dataset": "cifar10",

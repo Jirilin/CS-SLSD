@@ -17,8 +17,8 @@
   "mean_flat_width": 0.0886849414659775,
   "mean_projected_gradient_fraction": 0.5776445656058955,
   "mean_parameter_change": 0.013228291396471333,
-  "mean_batch_seconds": 12.565292345749999,
-  "total_seconds": 265.471863917,
+  "mean_batch_seconds": 13.8647616813,
+  "total_seconds": 292.095270708,
   "final_subspace_rank": 8,
   "config": {
     "dataset": "svhn",
