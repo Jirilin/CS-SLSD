@@ -1,70 +1,121 @@
-# Continual Semi-Supervised Learning from Streaming Data
+# CS-SLSD — Continual Semi-Supervised Learning from Streaming Data
 
-This repository contains the final-week implementation package for the MSc dissertation project.
+MSc Artificial Intelligence dissertation project at Oxford Brookes University.
 
-## Core idea
-The project tests whether an image classifier can keep learning from a changing stream of mostly unlabelled data without forgetting earlier knowledge.
+## Research question
+Can a continual semi-supervised image classifier adapt to a changing, predominantly unlabelled stream while retaining knowledge acquired from earlier data?
 
-## Implemented methods
-- Offline baseline
-- Naive online pseudo-labelling
-- Replay baseline
-- EWC baseline
-- Proposed prototype: centroid-refined pseudo-labelling + reservoir replay + online EWC
+## Final method
+The final implementation is an SDSL-inspired image-stream pipeline with a compact CNN (`SDSLVisionNet`), three-stage pseudo-label generation (classifier prediction, current-stream centroid refinement, invariant semantic reconstruction), low-rank gradient-subspace memory, and projected minimax replay.
 
-## Datasets
-- MNIST
-- CIFAR-10
-- SVHN
+## Experimental protocol
+- Initial trusted labels: 100 samples per class
+- Stream batches: 20
+- Stream batch size: 256
+- Dominant-pair fraction: approximately 70%
+- Seeds: 0, 1, 2, 3, 4
+- Datasets: MNIST, CIFAR-10, SVHN
+- Final subspace rank: 8
 
-The datasets are downloaded automatically by Torchvision into `./data`. Do not submit the `data/` folder.
+Ground-truth labels of stream observations are hidden from the SDSL learner and retained only for evaluation metrics.
 
-## Quick validation
+## Compared methods
+- `offline`: joint-supervised oracle using true labels of the full stream; not a deployable continual semi-supervised method.
+- `naive`: confidence pseudo-labels and direct updating.
+- `replay`: confidence pseudo-labels plus reservoir replay.
+- `ewc`: confidence pseudo-labels plus Elastic Weight Consolidation.
+- `sdsl_full`: three-stage pseudo-labelling plus gradient-subspace projected minimax replay.
+
+## Install
+```bash
+git clone https://github.com/Jirilin/CS-SLSD.git
+cd CS-SLSD
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install -r requirements_sdsl.txt
+python -m pip install scipy
+```
+
+## Tests
 ```bash
 python -m pytest tests -v
-python run_experiment.py --dataset mnist --method proposed --seed 0 --smoke
-python run_experiment.py --dataset cifar10 --method proposed --seed 0 --smoke
-python run_experiment.py --dataset svhn --method proposed --seed 0 --smoke
 ```
+The unit tests check software behaviour such as tensor compatibility, pseudo-label generation, and parameter updates. Passing tests does not by itself prove the research hypothesis.
 
-## Full final run
+## Smoke test
 ```bash
-python run_final_pipeline.py --full
+python run_sdsl_full.py --dataset mnist --seed 0 --smoke
 ```
+A smoke test is a shortened end-to-end validation run. Do not mix smoke outputs with final dissertation evidence.
 
-If interrupted:
+## One full SDSL run
 ```bash
-python run_final_pipeline.py --full --skip-tests
+python run_sdsl_full.py --dataset mnist --seed 0
 ```
 
-`run_extended.py` supports `--resume`, so completed summaries are skipped.
-
-## Result processing
+## Full SDSL matrix
 ```bash
-python aggregate_results.py --results-dir results/extended
-python plot_results.py --results-dir results/extended
-python run_analysis.py --results-dir results/extended
-python create_final_figures.py --results-dir results/extended
-python validate_submission.py --results-dir results/extended
+python run_sdsl_matrix.py --datasets mnist cifar10 svhn --seeds 0 1 2 3 4
+```
+This launches 15 SDSL runs.
+
+## Aggregate SDSL
+```bash
+python aggregate_sdsl.py --results-dir results/sdsl_full
 ```
 
-## Important outputs
-- `results/extended/dissertation_comparison_table.csv`
-- `results/extended/comparison_mean_std.csv`
-- `results/extended/change_correlation_summary.csv`
-- `results/extended/figures/`
-- `results/final_figures/`
-- `results/extended/environment_reproducibility.json`
-- `results/extended/submission_manifest.csv`
+## Full baseline matrix
+```bash
+python run_baseline_matrix.py   --datasets mnist cifar10 svhn   --methods offline naive replay ewc   --seeds 0 1 2 3 4   --output-dir results/baselines
+```
+This launches 60 baseline runs.
 
-## Report and presentation materials
-- `report_drafts/FINAL_REPORT_MASTER_DRAFT.md`
-- `docs/FINAL_PRESENTATION_SCRIPT.md`
-- `docs/VIVA_PREPARATION.md`
-- `docs/DEMO_RUNBOOK.md`
-- `docs/FINAL_SUBMISSION_CHECKLIST.md`
-- `docs/SUPERVISOR_FINAL_REVIEW.md`
-- `docs/REFERENCE_AUDIT_HARVARD.md`
+## Compare baselines and SDSL
+```bash
+python compare_baselines_and_sdsl.py   --baseline-dir results/baselines   --sdsl-dir results/sdsl_full
+```
 
-## Important limitation
-The implemented proposed prototype is inspired by SDSL and operationalises robust pseudo-labelling with centroid references. Its anti-forgetting mechanism is reservoir replay + online EWC. It is not a full reproduction of the original SDSL minimax flat-region replay solver. State this clearly in the report unless the minimax component is implemented and verified.
+## Generate dissertation figures
+```bash
+python plot_dissertation_results.py
+```
+
+## Reproducibility
+Seeds `0, 1, 2, 3, 4` are used because training and data ordering are stochastic. Results are aggregated as mean ± standard deviation.
+
+## Main SDSL results
+| Dataset | Final accuracy | Mean stream accuracy | Pseudo-label precision | Class-wise forgetting |
+|---|---:|---:|---:|---:|
+| MNIST | 0.8330 ± 0.0138 | 0.7509 ± 0.0252 | 0.7154 ± 0.0310 | 0.0551 ± 0.0281 |
+| CIFAR-10 | 0.3742 ± 0.0105 | 0.3410 ± 0.0105 | 0.3098 ± 0.0126 | 0.0887 ± 0.0195 |
+| SVHN | 0.1659 ± 0.0375 | 0.1299 ± 0.0285 | 0.1326 ± 0.0222 | 0.0765 ± 0.0267 |
+
+Interpretation:
+- MNIST is the strongest success case.
+- CIFAR-10 shows modest adaptation with noisy pseudo-labels.
+- SVHN is a weak/failure case in absolute performance.
+- Pseudo-label quality is a central constraint.
+
+## Viva demo
+```bash
+python -m pytest tests -v
+python run_sdsl_full.py --dataset mnist --seed 0 --smoke
+```
+Then show existing final artefacts and explain:
+`raw run → CSV/JSON → aggregation → mean ± SD → figures → dissertation evidence`.
+
+## Limitations
+- Simulated benchmark streams, mainly controlled class-prior shift.
+- Compact CNN.
+- Pseudo-label quality falls on CIFAR-10 and SVHN.
+- Some archived baselines and SDSL use different pseudo-label thresholds.
+- Flatness diagnostics are empirical, not formal proofs.
+- Future work: matched thresholds, stronger encoders, realistic drift, component ablations.
+
+## Key reference
+Ren, W., Wang, P., Li, X., Hughes, C. E. and Fu, Y. (2022), *Semi-supervised Drifted Stream Learning with Short Lookback*, KDD 2022, pp. 1504–1513, DOI: 10.1145/3534678.3539297.
+
+## Repository
+https://github.com/Jirilin/CS-SLSD
